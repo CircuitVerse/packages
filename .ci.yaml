@@ -4,27 +4,82 @@
 # for every commit.
 #
 # More information at:
-#  * https://github.com/flutter/cocoon/blob/master/CI_YAML.md
+#  * https://github.com/flutter/cocoon/blob/main/CI_YAML.md
 enabled_branches:
-  - master
+  - main
 
 platform_properties:
   linux:
     properties:
       fuchsia_ctl_version: ""
       os: Linux
+  windows:
+    properties:
+      dependencies: >
+        [
+          {"dependency": "certs", "version": "version:9563bb"}
+        ]
+      device_type: none
+      os: Windows
 
 targets:
+  - name: Windows custom_package_tests master - packages
+    recipe: packages/packages
+    timeout: 30
+    properties:
+      add_recipes_cq: "true"
+      target_file: windows_custom_package_tests.yaml
+      channel: master
+      version_file: flutter_master.version
+      dependencies: >
+        [
+          {"dependency": "vs_build", "version": "version:vs2019"}
+        ]
+
+  - name: Windows dart_unit_tests master - packages
+    recipe: packages/packages
+    timeout: 30
+    properties:
+      add_recipes_cq: "true"
+      target_file: windows_dart_unit_tests.yaml
+      channel: master
+      version_file: flutter_master.version
+      dependencies: >
+        [
+          {"dependency": "vs_build", "version": "version:vs2019"}
+        ]
+
+  - name: Windows win32-platform_tests master - packages
+    recipe: packages/packages
+    timeout: 30
+    properties:
+      add_recipes_cq: "true"
+      target_file: windows_build_and_platform_tests.yaml
+      channel: master
+      version_file: flutter_master.version
+      dependencies: >
+        [
+          {"dependency": "vs_build", "version": "version:vs2019"}
+        ]
+
+  - name: Windows win32-platform_tests stable - packages
+    recipe: packages/packages
+    timeout: 30
+    properties:
+      add_recipes_cq: "true"
+      target_file: windows_build_and_platform_tests.yaml
+      channel: stable
+      dependencies: >
+        [
+          {"dependency": "vs_build", "version": "version:vs2019"}
+        ]
+
   - name: Linux fuchsia_ctl
     postsubmit: false
     recipe: fuchsia_ctl
     timeout: 90
     properties:
       add_recipes_cq: "true"
-    scheduler: luci
 
   - name: Linux ci_yaml packages roller
-    bringup: true
-    presubmit: false
     recipe: infra/ci_yaml
-    scheduler: luci

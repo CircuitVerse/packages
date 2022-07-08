@@ -4,13 +4,10 @@
 
 import 'dart:convert';
 import 'dart:io' as io;
-import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final TextTheme textTheme =
@@ -157,9 +154,10 @@ void expectLinkTap(MarkdownLink? actual, MarkdownLink expected) {
 }
 
 String dumpRenderView() {
-  return WidgetsBinding.instance!.renderViewElement!.toStringDeep().replaceAll(
-      RegExp(r'SliverChildListDelegate#\d+', multiLine: true),
-      'SliverChildListDelegate');
+  return WidgetsBinding.instance.renderViewElement!.toStringDeep().replaceAll(
+        RegExp(r'SliverChildListDelegate#\d+', multiLine: true),
+        'SliverChildListDelegate',
+      );
 }
 
 /// Wraps a widget with a left-to-right [Directionality] for tests.

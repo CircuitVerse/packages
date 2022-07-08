@@ -57,7 +57,7 @@ typedef ClosedCallback<S> = void Function(S data);
 /// container is closed again via the callback provided to [openBuilder] or via
 /// Android's back button, the animation is reversed: The container shrinks back
 /// to its original size while the widget returned by [openBuilder] is faded out
-/// and the widget returned by [openBuilder] is faded back in.
+/// and the widget returned by [closedBuilder] is faded back in.
 ///
 /// By default, the container is in the closed state. During the transition from
 /// closed to open and vice versa the widgets returned by the [openBuilder] and
@@ -342,10 +342,10 @@ class _OpenContainerState<T> extends State<OpenContainer<T?>> {
 class _Hideable extends StatefulWidget {
   const _Hideable({
     Key? key,
-    this.child,
+    required this.child,
   }) : super(key: key);
 
-  final Widget? child;
+  final Widget child;
 
   @override
   State<_Hideable> createState() => _HideableState();
@@ -628,7 +628,7 @@ class _OpenContainerRoute<T> extends ModalRoute<T> {
     if (hideableKey.currentState?.isVisible == false) {
       // This route may be disposed without dismissing its animation if it is
       // removed by the navigator.
-      SchedulerBinding.instance!
+      SchedulerBinding.instance
           .addPostFrameCallback((Duration d) => _toggleHideable(hide: false));
     }
     super.dispose();
@@ -662,7 +662,7 @@ class _OpenContainerRoute<T> extends ModalRoute<T> {
     }
 
     if (delayForSourceRoute) {
-      SchedulerBinding.instance!
+      SchedulerBinding.instance
           .addPostFrameCallback(takeMeasurementsInSourceRoute);
     } else {
       takeMeasurementsInSourceRoute();

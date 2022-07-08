@@ -116,6 +116,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 alignment: Alignment.center,
                 children: <Widget>[
                   HtmlElement(
+                    key: const ValueKey<String>('background-widget'),
                     onClick: () {
                       _clickedOn('html-element');
                     },
@@ -129,6 +130,17 @@ class _MyHomePageState extends State<MyHomePage> {
                         onPressed: () {
                           _clickedOn('transparent-button');
                         },
+                      ),
+                      PointerInterceptor(
+                        intercepting: false,
+                        child: ElevatedButton(
+                          key: const Key('wrapped-transparent-button'),
+                          child:
+                              const Text('Never calls onPressed transparent'),
+                          onPressed: () {
+                            _clickedOn('wrapped-transparent-button');
+                          },
+                        ),
                       ),
                       PointerInterceptor(
                         child: ElevatedButton(

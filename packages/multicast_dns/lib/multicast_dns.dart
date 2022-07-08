@@ -49,6 +49,7 @@ class MDnsClient {
   bool _starting = false;
   bool _started = false;
   final List<RawDatagramSocket> _sockets = <RawDatagramSocket>[];
+  final List<RawDatagramSocket> _toBeClosed = <RawDatagramSocket>[];
   final LookupResolver _resolver = LookupResolver();
   final ResourceRecordCache _cache = ResourceRecordCache();
   final RawDatagramSocketFactory _rawDatagramSocketFactory;
@@ -82,6 +83,9 @@ class MDnsClient {
   /// The [mDnsAddress] allows configuring what internet address is used
   /// for the mDNS query. If not provided, defaults to either `224.0.0.251` or
   /// or `FF02::FB`.
+  ///
+  /// Subsequent calls to this method are ignored while the mDNS client is in
+  /// started state.
   Future<void> start({
     InternetAddress? listenAddress,
     NetworkInterfacesFactory? interfacesFactory,
@@ -90,8 +94,6 @@ class MDnsClient {
   }) async {
     listenAddress ??= InternetAddress.anyIPv4;
     interfacesFactory ??= allInterfacesFactory;
-    final int selectedMDnsPort = _mDnsPort = mDnsPort;
-    _mDnsAddress = mDnsAddress;
 
     assert(listenAddress.address == InternetAddress.anyIPv4.address ||
         listenAddress.address == InternetAddress.anyIPv6.address);
@@ -100,6 +102,9 @@ class MDnsClient {
       return;
     }
     _starting = true;
+
+    final int selectedMDnsPort = _mDnsPort = mDnsPort;
+    _mDnsAddress = mDnsAddress;
 
     // Listen on all addresses.
     final RawDatagramSocket incoming = await _rawDatagramSocketFactory(
@@ -113,6 +118,8 @@ class MDnsClient {
     // Can't send to IPv6 any address.
     if (incoming.address != InternetAddress.anyIPv6) {
       _sockets.add(incoming);
+    } else {
+      _toBeClosed.add(incoming);
     }
 
     _mDnsAddress ??= incoming.address.type == InternetAddressType.IPv4
@@ -167,6 +174,12 @@ class MDnsClient {
     for (final RawDatagramSocket socket in _sockets) {
       socket.close();
     }
+    _sockets.clear();
+
+    for (final RawDatagramSocket socket in _toBeClosed) {
+      socket.close();
+    }
+    _toBeClosed.clear();
 
     _resolver.clearPendingRequests();
 

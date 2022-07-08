@@ -4,17 +4,13 @@
 
 import 'dart:convert';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:meta/meta.dart';
 
 import '_functions_io.dart' if (dart.library.html) '_functions_web.dart';
-import 'builder.dart';
-import 'style_sheet.dart';
 
 /// Signature for callbacks used by [MarkdownWidget] when the user taps a link.
 /// The callback will return the link text, destination, and title from the
@@ -168,9 +164,11 @@ abstract class MarkdownWidget extends StatefulWidget {
     this.bulletBuilder,
     this.builders = const <String, MarkdownElementBuilder>{},
     this.blockBuilders = const <String, MarkdownElementBuilder>{},
+    this.paddingBuilders = const <String, MarkdownPaddingBuilder>{},
     this.fitContent = false,
     this.listItemCrossAxisAlignment =
         MarkdownListItemCrossAxisAlignment.baseline,
+    this.softLineBreak = false,
   }) : super(key: key);
 
   /// The Markdown to display.
@@ -251,6 +249,19 @@ abstract class MarkdownWidget extends StatefulWidget {
   /// The `IframeBuilder` is a subclass of [MarkdownElementBuilder].
   final Map<String, MarkdownElementBuilder> blockBuilders;
 
+  /// Add padding for different tags (use only for block elements and img)
+  ///
+  /// For example, we will add padding for `img` tag:
+  ///
+  /// ```dart
+  /// paddingBuilders: {
+  ///   'img': ImgPaddingBuilder(),
+  /// }
+  /// ```
+  ///
+  /// The `ImgPaddingBuilder` is a subclass of [MarkdownPaddingBuilder].
+  final Map<String, MarkdownPaddingBuilder> paddingBuilders;
+
   /// Whether to allow the widget to fit the child content.
   final bool fitContent;
 
@@ -260,6 +271,13 @@ abstract class MarkdownWidget extends StatefulWidget {
   /// Defaults to [MarkdownListItemCrossAxisAlignment.baseline], which
   /// does not allow for intrinsic height measurements.
   final MarkdownListItemCrossAxisAlignment listItemCrossAxisAlignment;
+
+  /// The soft line break is used to identify the spaces at the end of aline of
+  /// text and the leading spaces in the immediately following the line of text.
+  ///
+  /// Default these spaces are removed in accordance with the Markdown
+  /// specification on soft line breaks when lines of text are joined.
+  final bool softLineBreak;
 
   /// Subclasses should override this function to display the given children,
   /// which are the parsed representation of [data].
@@ -328,9 +346,11 @@ class _MarkdownWidgetState extends State<MarkdownWidget>
       bulletBuilder: widget.bulletBuilder,
       builders: widget.builders,
       blockBuilders: widget.blockBuilders,
+      paddingBuilders: widget.paddingBuilders,
       fitContent: widget.fitContent,
       listItemCrossAxisAlignment: widget.listItemCrossAxisAlignment,
       onTapText: widget.onTapText,
+      softLineBreak: widget.softLineBreak,
     );
 
     _children = builder.build(astNodes);
@@ -403,10 +423,13 @@ class MarkdownBody extends MarkdownWidget {
         const <String, MarkdownElementBuilder>{},
     Map<String, MarkdownElementBuilder> blockBuilders =
         const <String, MarkdownElementBuilder>{},
+    Map<String, MarkdownPaddingBuilder> paddingBuilders =
+        const <String, MarkdownPaddingBuilder>{},
     MarkdownListItemCrossAxisAlignment listItemCrossAxisAlignment =
         MarkdownListItemCrossAxisAlignment.baseline,
     this.shrinkWrap = true,
     bool fitContent = true,
+    bool softLineBreak = false,
   }) : super(
           key: key,
           data: data,
@@ -424,9 +447,11 @@ class MarkdownBody extends MarkdownWidget {
           checkboxBuilder: checkboxBuilder,
           builders: builders,
           blockBuilders: blockBuilders,
+          paddingBuilders: paddingBuilders,
           listItemCrossAxisAlignment: listItemCrossAxisAlignment,
           bulletBuilder: bulletBuilder,
           fitContent: fitContent,
+          softLineBreak: softLineBreak,
         );
 
   /// See [ScrollView.shrinkWrap]
@@ -475,12 +500,15 @@ class Markdown extends MarkdownWidget {
     MarkdownBulletBuilder? bulletBuilder,
     Map<String, MarkdownElementBuilder> builders =
         const <String, MarkdownElementBuilder>{},
+    Map<String, MarkdownPaddingBuilder> paddingBuilders =
+        const <String, MarkdownPaddingBuilder>{},
     MarkdownListItemCrossAxisAlignment listItemCrossAxisAlignment =
         MarkdownListItemCrossAxisAlignment.baseline,
     this.padding = const EdgeInsets.all(16.0),
     this.controller,
     this.physics,
     this.shrinkWrap = false,
+    bool softLineBreak = false,
   }) : super(
           key: key,
           data: data,
@@ -497,8 +525,10 @@ class Markdown extends MarkdownWidget {
           imageBuilder: imageBuilder,
           checkboxBuilder: checkboxBuilder,
           builders: builders,
+          paddingBuilders: paddingBuilders,
           listItemCrossAxisAlignment: listItemCrossAxisAlignment,
           bulletBuilder: bulletBuilder,
+          softLineBreak: softLineBreak,
         );
 
   /// The amount of space by which to inset the children.
@@ -549,4 +579,14 @@ class TaskListSyntax extends md.InlineSyntax {
     parser.addNode(el);
     return true;
   }
+}
+
+/// An interface for an padding builder for element.
+abstract class MarkdownPaddingBuilder {
+  /// Called when an Element has been reached, before its children have been
+  /// visited.
+  void visitElementBefore(md.Element element) {}
+
+  /// Called when a widget node has been rendering and need tag padding.
+  EdgeInsets getPadding() => EdgeInsets.zero;
 }

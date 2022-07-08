@@ -86,38 +86,18 @@ test_pigeon_android() {
 # test_null_safe_dart(<path to pigeon file>)
 #
 # Compiles the pigeon file to a temp directory and attempts to run the dart
-# analyzer on it with and without null safety turned on.
+# analyzer on it.
 test_pigeon_dart() {
-  echo "test_pigeon_dart($1)"
-  temp_dir_1=$(mktmpdir)
-  temp_dir_2=$(mktmpdir)
+  echo "test_pigeon_dart($1, $2)"
+  local flutter_project_dir=$2
 
   $run_pigeon \
     --input $1 \
-    --dart_out $temp_dir_1/pigeon.dart &
-  null_safe_gen_pid=$!
+    --dart_out $flutter_project_dir/lib/pigeon.dart
 
-  $run_pigeon \
-    --no-dart_null_safety \
-    --input $1 \
-    --dart_out $temp_dir_2/pigeon.dart &
-  non_null_safe_gen_pid=$!
+  dart analyze $flutter_project_dir/lib/pigeon.dart --fatal-infos --fatal-warnings
 
-  wait $null_safe_gen_pid
-  wait $non_null_safe_gen_pid
-
-  # `./e2e_tests/test_objc/.packages` is used to get access to Flutter since
-  # Pigeon doesn't depend on Flutter.
-  dartanalyzer $temp_dir_1/pigeon.dart --fatal-infos --fatal-warnings --packages ./e2e_tests/test_objc/.packages &
-  null_safe_analyze_pid=$!
-  dartanalyzer $temp_dir_2/pigeon.dart --fatal-infos --fatal-warnings --packages ./e2e_tests/test_objc/.packages &
-  non_null_safe_analyze_pid=$!
-
-  wait $null_safe_analyze_pid
-  wait $non_null_safe_analyze_pid
-
-  rm -rf $temp_dir_1
-  rm -rf $temp_dir_2
+  rm $flutter_project_dir/lib/pigeon.dart
 }
 
 print_usage() {
@@ -184,86 +164,66 @@ get_java_linter_formatter() {
 }
 
 run_dart_unittests() {
-  dart analyze bin
-  dart analyze lib
-  dart test
+  dart run tool/run_tests.dart -t dart_unittests
 }
 
-test_running_without_arguments() {
+test_command_line() {
+  # Test with no arguments.
   $run_pigeon 1>/dev/null
-}
-
-# Test one_language flag. With this flag specified, java_out can be generated
-# without dart_out.
-test_one_language_flag() {
+  # Test one_language flag. With this flag specified, java_out can be generated
+  # without dart_out.
   $run_pigeon \
     --input pigeons/message.dart \
     --one_language \
     --java_out stdout \
     | grep "public class Message">/dev/null
+  # Test dartOut in ConfigurePigeon overrides output.
+  $run_pigeon --input pigeons/configure_pigeon_dart_out.dart 1>/dev/null
+  # Make sure AST generation exits correctly.
+  $run_pigeon --input pigeons/message.dart --one_language --ast_out /dev/null
 }
 
 run_flutter_unittests() {
-  local flutter_tests="platform_tests/flutter_null_safe_unit_tests"
-  pushd $PWD
-  $run_pigeon \
-    --input pigeons/flutter_unittests.dart \
-    --dart_out "$flutter_tests/lib/null_safe_pigeon.dart"
-  $run_pigeon \
-    --input pigeons/all_datatypes.dart \
-    --dart_out "$flutter_tests/lib/all_datatypes.dart"
-  $run_pigeon \
-    --input pigeons/primitive.dart \
-    --dart_out "$flutter_tests/lib/primitive.dart"
-  cd "$flutter_tests"
-  flutter pub get
-  flutter test test/null_safe_test.dart
-  flutter test test/all_datatypes_test.dart
-  flutter test test/primitive_test.dart
-  popd
+  dart run tool/run_tests.dart -t flutter_unittests
 }
 
 run_mock_handler_tests() {
-  pushd $PWD
-  $run_pigeon \
-    --input pigeons/message.dart \
-    --dart_out mock_handler_tester/test/message.dart \
-    --dart_test_out mock_handler_tester/test/test.dart
-  dartfmt -w mock_handler_tester/test/message.dart
-  dartfmt -w mock_handler_tester/test/test.dart
-  cd mock_handler_tester
-  flutter test
-  popd
+  dart run tool/run_tests.dart -t mock_handler_tests
 }
 
 run_dart_compilation_tests() {
-  # DEPRECATED: These tests are deprecated, use run_flutter_unittests instead.
-  # Make sure the artifacts are present.
-  flutter precache
-  # Make sure flutter dependencies are available.
-  pushd $PWD
-  cd e2e_tests/test_objc/
-  flutter pub get
-  popd
-  test_pigeon_dart ./pigeons/all_void.dart
-  test_pigeon_dart ./pigeons/async_handlers.dart
-  test_pigeon_dart ./pigeons/host2flutter.dart
-  test_pigeon_dart ./pigeons/list.dart
-  test_pigeon_dart ./pigeons/message.dart
-  test_pigeon_dart ./pigeons/void_arg_flutter.dart
-  test_pigeon_dart ./pigeons/void_arg_host.dart
-  test_pigeon_dart ./pigeons/voidflutter.dart
-  test_pigeon_dart ./pigeons/voidhost.dart
+  local temp_dir=$(mktmpdir)
+  local flutter_project_dir=$temp_dir/project
+
+  flutter create --platforms="android" $flutter_project_dir 1> /dev/null
+
+  test_pigeon_dart ./pigeons/all_void.dart $flutter_project_dir
+  test_pigeon_dart ./pigeons/async_handlers.dart $flutter_project_dir
+  test_pigeon_dart ./pigeons/host2flutter.dart $flutter_project_dir
+  test_pigeon_dart ./pigeons/list.dart $flutter_project_dir
+  test_pigeon_dart ./pigeons/message.dart $flutter_project_dir
+  test_pigeon_dart ./pigeons/void_arg_flutter.dart $flutter_project_dir
+  test_pigeon_dart ./pigeons/void_arg_host.dart $flutter_project_dir
+  test_pigeon_dart ./pigeons/voidflutter.dart $flutter_project_dir
+  test_pigeon_dart ./pigeons/voidhost.dart $flutter_project_dir
+
+  rm -rf $temp_dir
 }
 
 run_ios_unittests() {
   gen_ios_unittests_code ./pigeons/all_void.dart ""
   gen_ios_unittests_code ./pigeons/all_datatypes.dart ""
   gen_ios_unittests_code ./pigeons/async_handlers.dart ""
+  gen_ios_unittests_code ./pigeons/background_platform_channels.dart "BC"
   gen_ios_unittests_code ./pigeons/enum.dart "AC"
+  gen_ios_unittests_code ./pigeons/enum_args.dart "EA"
   gen_ios_unittests_code ./pigeons/host2flutter.dart ""
   gen_ios_unittests_code ./pigeons/list.dart "LST"
   gen_ios_unittests_code ./pigeons/message.dart ""
+  gen_ios_unittests_code ./pigeons/multiple_arity.dart ""
+  gen_ios_unittests_code ./pigeons/non_null_fields.dart "NNF"
+  gen_ios_unittests_code ./pigeons/null_fields.dart ""
+  gen_ios_unittests_code ./pigeons/nullable_returns.dart "NR"
   gen_ios_unittests_code ./pigeons/primitive.dart ""
   gen_ios_unittests_code ./pigeons/void_arg_flutter.dart "VAF"
   gen_ios_unittests_code ./pigeons/void_arg_host.dart "VAH"
@@ -293,33 +253,40 @@ run_ios_e2e_tests() {
     --objc_header_out $DARTLE_H \
     --objc_source_out $DARTLE_M \
     --java_out $PIGEON_JAVA
-  dartfmt -w $DARTLE_DART
+  dart format $DARTLE_DART
 
   pushd $PWD
   cd e2e_tests/test_objc
   flutter build ios -t test_driver/e2e_test.dart --simulator
-  cd ios
-  xcodebuild \
-    -workspace Runner.xcworkspace \
-    -scheme RunnerTests \
-    -sdk iphonesimulator \
-    -destination 'platform=iOS Simulator,name=iPhone 8' \
-    test
+  # TODO(gaaclarke): Transition to integration_test. `e2e` has been deprecated
+  # and has stopped working.
+  # cd ios
+  # xcodebuild \
+  #   -workspace Runner.xcworkspace \
+  #   -scheme RunnerTests \
+  #   -sdk iphonesimulator \
+  #   -destination 'platform=iOS Simulator,name=iPhone 8' \
+  #   test
   popd
 }
 
 run_android_unittests() {
-  test_one_language_flag
-
   pushd $PWD
   gen_android_unittests_code ./pigeons/all_datatypes.dart AllDatatypes
   gen_android_unittests_code ./pigeons/all_void.dart AllVoid
   gen_android_unittests_code ./pigeons/android_unittests.dart Pigeon
   gen_android_unittests_code ./pigeons/async_handlers.dart AsyncHandlers
+  gen_android_unittests_code ./pigeons/background_platform_channels.dart BackgroundPlatformChannels
+  gen_android_unittests_code ./pigeons/enum.dart Enum
+  gen_android_unittests_code ./pigeons/enum_args.dart EnumArgs
   gen_android_unittests_code ./pigeons/host2flutter.dart Host2Flutter
   gen_android_unittests_code ./pigeons/java_double_host_api.dart JavaDoubleHostApi
   gen_android_unittests_code ./pigeons/list.dart PigeonList
   gen_android_unittests_code ./pigeons/message.dart MessagePigeon
+  gen_android_unittests_code ./pigeons/multiple_arity.dart MultipleArity
+  gen_android_unittests_code ./pigeons/non_null_fields.dart NonNullFields
+  gen_android_unittests_code ./pigeons/null_fields.dart NullFields
+  gen_android_unittests_code ./pigeons/nullable_returns.dart NullableReturns
   gen_android_unittests_code ./pigeons/primitive.dart Primitive
   gen_android_unittests_code ./pigeons/void_arg_flutter.dart VoidArgFlutter
   gen_android_unittests_code ./pigeons/void_arg_host.dart VoidArgHost
@@ -396,12 +363,12 @@ while getopts "t:l?h" opt; do
 done
 
 ##############################################################################
-pub get
+dart pub get
 dart --snapshot-kind=kernel --snapshot=bin/pigeon.dart.dill bin/pigeon.dart
 if [ "$should_run_android_unittests" = true ]; then
   get_java_linter_formatter
 fi
-test_running_without_arguments
+test_command_line
 if [ "$should_run_dart_unittests" = true ]; then
   run_dart_unittests
 fi

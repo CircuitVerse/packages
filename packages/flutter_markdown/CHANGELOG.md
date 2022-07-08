@@ -1,3 +1,43 @@
+## 0.6.10+2
+
+* Migrates from `ui.hash*` to `Object.hash*`.
+
+## 0.6.10+1
+
+* Updates Linux example to remove unneeded library dependencies that
+  could cause build failures.
+* Updates for non-nullable bindings.
+
+## 0.6.10
+
+ * Update `markdown` dependency
+
+## 0.6.9+1
+
+ * Remove build status badge from `README.md`
+
+## 0.6.9
+
+  * Leading spaces in a paragraph and in list items are now ignored according to [GFM #192](https://github.github.com/gfm/#example-192) and [GFM #236](https://github.github.com/gfm/#example-236).
+
+## 0.6.8
+
+  * Added option paddingBuilders
+
+## 0.6.7
+
+ * Fix `unnecessary_import` lint errors.
+ * Added option pPadding
+ * Added options h1Padding - h6Padding
+
+## 0.6.6
+
+ * Soft line break
+
+## 0.6.5
+
+ * Fix unique Keys for RichText blocks
+
 ## 0.6.4
 
  * Fix merging of spans when first span is not a TextSpan

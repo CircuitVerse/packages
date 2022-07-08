@@ -1,3 +1,11 @@
+## 1.0.5
+
+* Updates README to reference correct URL.
+
+## 1.0.4
+
+* Updates README to link to API docs.
+
 ## 1.0.3
 * Source moved to flutter/packages.
 

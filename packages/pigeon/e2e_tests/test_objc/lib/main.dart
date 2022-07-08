@@ -5,23 +5,23 @@
 import 'package:flutter/material.dart';
 import 'dartle.dart';
 
-class _MyFlutterSearchApi extends FlutterSearchApi {
+class _MyFlutterSearchApi extends MessageFlutterSearchApi {
   @override
-  SearchReply search(SearchRequest input) {
-    return SearchReply()..result = 'Hello ${input.query}, from Flutter';
+  MessageSearchReply search(MessageSearchRequest input) {
+    return MessageSearchReply()..result = 'Hello ${input.query}, from Flutter';
   }
 }
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  FlutterSearchApi.setup(_MyFlutterSearchApi());
+  MessageFlutterSearchApi.setup(_MyFlutterSearchApi());
   runApp(const MyApp());
 }
 
 /// Main widget for the tests.
 class MyApp extends StatelessWidget {
   /// Creates the main widget for the tests.
-  const MyApp({Key key}) : super(key: key);
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +36,7 @@ class MyApp extends StatelessWidget {
 }
 
 class _MyHomePage extends StatefulWidget {
-  const _MyHomePage({Key key, this.title}) : super(key: key);
+  const _MyHomePage({Key? key, required this.title}) : super(key: key);
   final String title;
 
   @override
@@ -45,15 +45,16 @@ class _MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<_MyHomePage> {
   String _message = '';
-  RequestState _state = RequestState.pending;
+  MessageRequestState _state = MessageRequestState.pending;
 
   Future<void> _incrementCounter() async {
-    final SearchRequest request = SearchRequest()..query = 'Aaron';
-    final Api api = Api();
-    final SearchReply reply = await api.search(request);
+    final MessageSearchRequest request = MessageSearchRequest()
+      ..query = 'Aaron';
+    final MessageApi api = MessageApi();
+    final MessageSearchReply reply = await api.search(request);
     setState(() {
-      _message = reply.result;
-      _state = reply.state;
+      _message = reply.result ?? '(null)';
+      _state = reply.state ?? MessageRequestState.failure;
     });
   }
 

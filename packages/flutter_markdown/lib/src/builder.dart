@@ -102,9 +102,11 @@ class MarkdownBuilder implements md.NodeVisitor {
     required this.bulletBuilder,
     required this.builders,
     required this.blockBuilders,
+    required this.paddingBuilders,
     required this.listItemCrossAxisAlignment,
     this.fitContent = false,
     this.onTapText,
+    this.softLineBreak = false,
   });
 
   /// A delegate that controls how link and `pre` elements behave.
@@ -136,6 +138,9 @@ class MarkdownBuilder implements md.NodeVisitor {
   /// Call when build a custom block widget.
   final Map<String, MarkdownElementBuilder> blockBuilders;
 
+  /// Call when build a padding for widget.
+  final Map<String, MarkdownPaddingBuilder> paddingBuilders;
+
   /// Whether to allow the widget to fit the child content.
   final bool fitContent;
 
@@ -149,13 +154,20 @@ class MarkdownBuilder implements md.NodeVisitor {
   /// Default tap handler used when [selectable] is set to true
   final VoidCallback? onTapText;
 
+  /// The soft line break is used to identify the spaces at the end of aline of
+  /// text and the leading spaces in the immediately following the line of text.
+  ///
+  /// Default these spaces are removed in accordance with the Markdown
+  /// specification on soft line breaks when lines of text are joined.
+  final bool softLineBreak;
+
   final List<String> _listIndents = <String>[];
   final List<_BlockElement> _blocks = <_BlockElement>[];
   final List<_TableElement> _tables = <_TableElement>[];
   final List<_InlineElement> _inlines = <_InlineElement>[];
   final List<GestureRecognizer> _linkHandlers = <GestureRecognizer>[];
   String? _currentBlockTag;
-  String? _lastTag;
+  String? _lastVisitedTag;
   bool _isInBlockquote = false;
 
   /// Returns widgets that display the given Markdown nodes.
@@ -186,9 +198,14 @@ class MarkdownBuilder implements md.NodeVisitor {
   bool visitElementBefore(md.Element element) {
     final String tag = element.tag;
     _currentBlockTag ??= tag;
+    _lastVisitedTag = tag;
 
     if (builders.containsKey(tag)) {
       builders[tag]!.visitElementBefore(element);
+    }
+
+    if (paddingBuilders.containsKey(tag)) {
+      paddingBuilders[tag]!.visitElementBefore(element);
     }
 
     int? start;
@@ -287,21 +304,25 @@ class MarkdownBuilder implements md.NodeVisitor {
       // at the beginning of a line of text.
       final RegExp _leadingSpacesPattern = RegExp(r'^ *');
 
-      // The soft line break pattern is used to identify the spaces at the end of a
-      // line of text and the leading spaces in the immediately following the line
+      // The soft line break is used to identify the spaces at the end of a line
+      // of text and the leading spaces in the immediately following the line
       // of text. These spaces are removed in accordance with the Markdown
       // specification on soft line breaks when lines of text are joined.
-      final RegExp _softLineBreakPattern = RegExp(r' ?\n *');
+      final RegExp _softLineBreak = RegExp(r' ?\n *');
 
       // Leading spaces following a hard line break are ignored.
       // https://github.github.com/gfm/#example-657
-      if (_lastTag == 'br') {
+      // Leading spaces in paragraph or list item are ignored
+      // https://github.github.com/gfm/#example-192
+      // https://github.github.com/gfm/#example-236
+      if (const <String>['ul', 'ol', 'p', 'br'].contains(_lastVisitedTag)) {
         text = text.replaceAll(_leadingSpacesPattern, '');
       }
 
-      // Spaces at end of the line and beginning of the next line are removed.
-      // https://github.github.com/gfm/#example-670
-      return text.replaceAll(_softLineBreakPattern, ' ');
+      if (softLineBreak) {
+        return text;
+      }
+      return text.replaceAll(_softLineBreak, ' ');
     }
 
     Widget? child;
@@ -331,6 +352,8 @@ class MarkdownBuilder implements md.NodeVisitor {
     if (child != null) {
       _inlines.last.children.add(child);
     }
+
+    _lastVisitedTag = null;
   }
 
   @override
@@ -414,13 +437,19 @@ class MarkdownBuilder implements md.NodeVisitor {
       } else if (tag == 'hr') {
         child = Container(decoration: styleSheet.horizontalRuleDecoration);
       } else if (blockBuilders.containsKey(tag)) {
-        child = blockBuilders[tag]!.visitElementAfter(element, styleSheet.styles[tag])!;
+        child = blockBuilders[tag]!
+            .visitElementAfter(element, styleSheet.styles[tag])!;
       }
 
       _addBlockChild(child);
     } else {
       final _InlineElement current = _inlines.removeLast();
       final _InlineElement parent = _inlines.last;
+      EdgeInsets padding = EdgeInsets.zero;
+
+      if (paddingBuilders.containsKey(tag)) {
+        padding = paddingBuilders[tag]!.getPadding();
+      }
 
       if (builders.containsKey(tag)) {
         final Widget? child =
@@ -430,10 +459,13 @@ class MarkdownBuilder implements md.NodeVisitor {
         }
       } else if (tag == 'img') {
         // create an image widget for this image
-        current.children.add(_buildImage(
-          element.attributes['src']!,
-          element.attributes['title'],
-          element.attributes['alt'],
+        current.children.add(_buildPadding(
+          padding,
+          _buildImage(
+            element.attributes['src']!,
+            element.attributes['title'],
+            element.attributes['alt'],
+          ),
         ));
       } else if (tag == 'br') {
         current.children.add(_buildRichText(const TextSpan(text: '\n')));
@@ -473,7 +505,7 @@ class MarkdownBuilder implements md.NodeVisitor {
     if (_currentBlockTag == tag) {
       _currentBlockTag = null;
     }
-    _lastTag = tag;
+    _lastVisitedTag = tag;
   }
 
   Widget _buildImage(String src, String? title, String? alt) {
@@ -496,11 +528,12 @@ class MarkdownBuilder implements md.NodeVisitor {
     final Uri uri = Uri.parse(path);
     Widget child;
     if (imageBuilder != null) {
-      child = imageBuilder!(uri, title, alt) ?? kDefaultImageBuilder(uri, imageDirectory, width, height);
+      child = imageBuilder!(uri, title, alt) ??
+          kDefaultImageBuilder(uri, imageDirectory, width, height);
     } else {
       child = kDefaultImageBuilder(uri, imageDirectory, width, height);
     }
-    
+
     if (_linkHandlers.isNotEmpty) {
       final TapGestureRecognizer recognizer =
           _linkHandlers.last as TapGestureRecognizer;
@@ -570,11 +603,20 @@ class MarkdownBuilder implements md.NodeVisitor {
     );
   }
 
+  Widget _buildPadding(EdgeInsets padding, Widget child) {
+    if (padding == EdgeInsets.zero) {
+      return child;
+    }
+
+    return Padding(padding: padding, child: child);
+  }
+
   void _addParentInlineIfNeeded(String? tag) {
     if (_inlines.isEmpty) {
       _inlines.add(_InlineElement(
         tag,
-        style: styleSheet.styles.containsKey(tag) ? styleSheet.styles[tag!] : null,
+        style:
+            styleSheet.styles.containsKey(tag) ? styleSheet.styles[tag!] : null,
       ));
     }
   }
@@ -595,9 +637,16 @@ class MarkdownBuilder implements md.NodeVisitor {
 
     WrapAlignment blockAlignment = WrapAlignment.start;
     TextAlign textAlign = TextAlign.start;
-    if (_isBlockTag(_currentBlockTag) || blockBuilders.containsKey(_currentBlockTag)) {
+    EdgeInsets textPadding = EdgeInsets.zero;
+    if (_isBlockTag(_currentBlockTag) ||
+        blockBuilders.containsKey(_currentBlockTag)) {
       blockAlignment = _wrapAlignmentForBlockTag(_currentBlockTag);
       textAlign = _textAlignForBlockTag(_currentBlockTag);
+      textPadding = _textPaddingForBlockTag(_currentBlockTag);
+
+      if (paddingBuilders.containsKey(_currentBlockTag)) {
+        textPadding = paddingBuilders[_currentBlockTag]!.getPadding();
+      }
     }
 
     final _InlineElement inline = _inlines.single;
@@ -611,7 +660,14 @@ class MarkdownBuilder implements md.NodeVisitor {
         children: mergedInlines,
         alignment: blockAlignment,
       );
-      _addBlockChild(wrap);
+
+      if (textPadding == EdgeInsets.zero) {
+        _addBlockChild(wrap);
+      } else {
+        final Padding padding = Padding(padding: textPadding, child: wrap);
+        _addBlockChild(padding);
+      }
+
       _inlines.clear();
     }
   }
@@ -719,6 +775,26 @@ class MarkdownBuilder implements md.NodeVisitor {
     return WrapAlignment.start;
   }
 
+  EdgeInsets _textPaddingForBlockTag(String? blockTag) {
+    switch (blockTag) {
+      case 'p':
+        return styleSheet.pPadding!;
+      case 'h1':
+        return styleSheet.h1Padding!;
+      case 'h2':
+        return styleSheet.h2Padding!;
+      case 'h3':
+        return styleSheet.h3Padding!;
+      case 'h4':
+        return styleSheet.h4Padding!;
+      case 'h5':
+        return styleSheet.h5Padding!;
+      case 'h6':
+        return styleSheet.h6Padding!;
+    }
+    return EdgeInsets.zero;
+  }
+
   /// Combine text spans with equivalent properties into a single span.
   TextSpan? _mergeSimilarTextSpans(List<TextSpan>? textSpans) {
     if (textSpans == null || textSpans.length < 2) {
@@ -729,8 +805,7 @@ class MarkdownBuilder implements md.NodeVisitor {
 
     for (int index = 1; index < textSpans.length; index++) {
       final TextSpan nextChild = textSpans[index];
-      if (nextChild is TextSpan &&
-          nextChild.recognizer == mergedSpans.last.recognizer &&
+      if (nextChild.recognizer == mergedSpans.last.recognizer &&
           nextChild.semanticsLabel == mergedSpans.last.semanticsLabel &&
           nextChild.style == mergedSpans.last.style) {
         final TextSpan previous = mergedSpans.removeLast();
@@ -754,21 +829,21 @@ class MarkdownBuilder implements md.NodeVisitor {
 
   Widget _buildRichText(TextSpan? text, {TextAlign? textAlign, String? key}) {
     //Adding a unique key prevents the problem of using the same link handler for text spans with the same text
-    key = key ?? '${text.hashCode}${DateTime.now().millisecondsSinceEpoch}';
+    final Key k = key == null ? UniqueKey() : Key(key);
     if (selectable) {
       return SelectableText.rich(
         text!,
         textScaleFactor: styleSheet.textScaleFactor,
         textAlign: textAlign ?? TextAlign.start,
         onTap: onTapText,
-        key: Key(key),
+        key: k,
       );
     } else {
       return RichText(
         text: text!,
         textScaleFactor: styleSheet.textScaleFactor!,
         textAlign: textAlign ?? TextAlign.start,
-        key: Key(key),
+        key: k,
       );
     }
   }

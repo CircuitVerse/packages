@@ -6,14 +6,18 @@
 #import <Flutter/Flutter.h>
 
 @implementation MyApi
-- (ACSearchReply *)search:(ACSearchRequest *)input error:(FlutterError **)error {
+- (void)initializeWithError:(FlutterError *_Nullable *_Nonnull)error {
+}
+
+- (ACMessageSearchReply *)searchRequest:(ACMessageSearchRequest *)input
+                                  error:(FlutterError **)error {
   if ([input.query isEqualToString:@"error"]) {
     *error = [FlutterError errorWithCode:@"somecode" message:@"somemessage" details:nil];
     return nil;
   } else {
-    ACSearchReply *reply = [[ACSearchReply alloc] init];
+    ACMessageSearchReply *reply = [[ACMessageSearchReply alloc] init];
     reply.result = [NSString stringWithFormat:@"Hello %@!", input.query];
-    reply.state = ACRequestStateSuccess;
+    reply.state = ACMessageRequestStateSuccess;
     return reply;
   }
 }

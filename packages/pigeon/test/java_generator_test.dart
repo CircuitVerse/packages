@@ -4,6 +4,7 @@
 
 import 'package:pigeon/ast.dart';
 import 'package:pigeon/java_generator.dart';
+import 'package:pigeon/pigeon.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -12,8 +13,10 @@ void main() {
       name: 'Foobar',
       fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'int', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'int',
+              isNullable: true,
+            ),
             name: 'field1',
             offset: null),
       ],
@@ -29,7 +32,8 @@ void main() {
     final String code = sink.toString();
     expect(code, contains('public class Messages'));
     expect(code, contains('public static class Foobar'));
-    expect(code, contains('private Long field1;'));
+    expect(code, contains('public static final class Builder'));
+    expect(code, contains('private @Nullable Long field1;'));
   });
 
   test('gen one enum', () {
@@ -62,8 +66,10 @@ void main() {
       name: 'Foobar',
       fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'int', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'int',
+              isNullable: true,
+            ),
             name: 'field1',
             offset: null)
       ],
@@ -89,27 +95,34 @@ void main() {
           name: 'doSomething',
           arguments: <NamedType>[
             NamedType(
-                type: TypeDeclaration(
-                    baseName: 'Input', isNullable: false, typeArguments: null),
+                type: const TypeDeclaration(
+                  baseName: 'Input',
+                  isNullable: false,
+                ),
                 name: '',
                 offset: null)
           ],
-          returnType: TypeDeclaration(baseName: 'Output', isNullable: false),
+          returnType:
+              const TypeDeclaration(baseName: 'Output', isNullable: false),
           isAsynchronous: false,
         )
       ])
     ], classes: <Class>[
       Class(name: 'Input', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'input',
             offset: null)
       ]),
       Class(name: 'Output', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'output',
             offset: null)
       ])
@@ -127,43 +140,59 @@ void main() {
     final Root root = Root(apis: <Api>[], classes: <Class>[
       Class(name: 'Foobar', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'bool', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'bool',
+              isNullable: true,
+            ),
             name: 'aBool',
             offset: null),
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'int', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'int',
+              isNullable: true,
+            ),
             name: 'aInt',
             offset: null),
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'double', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'double',
+              isNullable: true,
+            ),
             name: 'aDouble',
             offset: null),
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'aString',
             offset: null),
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'Uint8List', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'Uint8List',
+              isNullable: true,
+            ),
             name: 'aUint8List',
             offset: null),
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'Int32List', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'Int32List',
+              isNullable: true,
+            ),
             name: 'aInt32List',
             offset: null),
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'Int64List', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'Int64List',
+              isNullable: true,
+            ),
             name: 'aInt64List',
             offset: null),
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'Float64List', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'Float64List',
+              isNullable: true,
+            ),
             name: 'aFloat64List',
             offset: null),
       ]),
@@ -173,14 +202,14 @@ void main() {
     const JavaOptions javaOptions = JavaOptions(className: 'Messages');
     generateJava(javaOptions, root, sink);
     final String code = sink.toString();
-    expect(code, contains('private Boolean aBool;'));
-    expect(code, contains('private Long aInt;'));
-    expect(code, contains('private Double aDouble;'));
-    expect(code, contains('private String aString;'));
-    expect(code, contains('private byte[] aUint8List;'));
-    expect(code, contains('private int[] aInt32List;'));
-    expect(code, contains('private long[] aInt64List;'));
-    expect(code, contains('private double[] aFloat64List;'));
+    expect(code, contains('private @Nullable Boolean aBool;'));
+    expect(code, contains('private @Nullable Long aInt;'));
+    expect(code, contains('private @Nullable Double aDouble;'));
+    expect(code, contains('private @Nullable String aString;'));
+    expect(code, contains('private @Nullable byte[] aUint8List;'));
+    expect(code, contains('private @Nullable int[] aInt32List;'));
+    expect(code, contains('private @Nullable long[] aInt64List;'));
+    expect(code, contains('private @Nullable double[] aFloat64List;'));
   });
 
   test('gen one flutter api', () {
@@ -190,27 +219,34 @@ void main() {
           name: 'doSomething',
           arguments: <NamedType>[
             NamedType(
-                type: TypeDeclaration(
-                    baseName: 'Input', isNullable: false, typeArguments: null),
+                type: const TypeDeclaration(
+                  baseName: 'Input',
+                  isNullable: false,
+                ),
                 name: '',
                 offset: null)
           ],
-          returnType: TypeDeclaration(baseName: 'Output', isNullable: false),
+          returnType:
+              const TypeDeclaration(baseName: 'Output', isNullable: false),
           isAsynchronous: false,
         )
       ])
     ], classes: <Class>[
       Class(name: 'Input', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'input',
             offset: null)
       ]),
       Class(name: 'Output', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'output',
             offset: null)
       ])
@@ -230,20 +266,24 @@ void main() {
           name: 'doSomething',
           arguments: <NamedType>[
             NamedType(
-                type: TypeDeclaration(
-                    baseName: 'Input', isNullable: false, typeArguments: null),
+                type: const TypeDeclaration(
+                  baseName: 'Input',
+                  isNullable: false,
+                ),
                 name: '',
                 offset: null)
           ],
-          returnType: TypeDeclaration(baseName: 'void', isNullable: false),
+          returnType: const TypeDeclaration.voidDeclaration(),
           isAsynchronous: false,
         )
       ])
     ], classes: <Class>[
       Class(name: 'Input', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'input',
             offset: null)
       ]),
@@ -263,20 +303,24 @@ void main() {
           name: 'doSomething',
           arguments: <NamedType>[
             NamedType(
-                type: TypeDeclaration(
-                    baseName: 'Input', isNullable: false, typeArguments: null),
+                type: const TypeDeclaration(
+                  baseName: 'Input',
+                  isNullable: false,
+                ),
                 name: '',
                 offset: null)
           ],
-          returnType: TypeDeclaration(baseName: 'void', isNullable: false),
+          returnType: const TypeDeclaration.voidDeclaration(),
           isAsynchronous: false,
         )
       ])
     ], classes: <Class>[
       Class(name: 'Input', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'input',
             offset: null)
       ]),
@@ -295,15 +339,18 @@ void main() {
         Method(
           name: 'doSomething',
           arguments: <NamedType>[],
-          returnType: TypeDeclaration(baseName: 'Output', isNullable: false),
+          returnType:
+              const TypeDeclaration(baseName: 'Output', isNullable: false),
           isAsynchronous: false,
         )
       ])
     ], classes: <Class>[
       Class(name: 'Output', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'output',
             offset: null)
       ]),
@@ -322,15 +369,18 @@ void main() {
         Method(
           name: 'doSomething',
           arguments: <NamedType>[],
-          returnType: TypeDeclaration(baseName: 'Output', isNullable: false),
+          returnType:
+              const TypeDeclaration(baseName: 'Output', isNullable: false),
           isAsynchronous: false,
         )
       ])
     ], classes: <Class>[
       Class(name: 'Output', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'output',
             offset: null)
       ]),
@@ -347,8 +397,10 @@ void main() {
     final Root root = Root(apis: <Api>[], classes: <Class>[
       Class(name: 'Foobar', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'List', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'List',
+              isNullable: true,
+            ),
             name: 'field1',
             offset: null)
       ]),
@@ -358,15 +410,17 @@ void main() {
     generateJava(javaOptions, root, sink);
     final String code = sink.toString();
     expect(code, contains('public static class Foobar'));
-    expect(code, contains('private List<Object> field1;'));
+    expect(code, contains('private @Nullable List<Object> field1;'));
   });
 
   test('gen map', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[
       Class(name: 'Foobar', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'Map', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'Map',
+              isNullable: true,
+            ),
             name: 'field1',
             offset: null)
       ]),
@@ -376,7 +430,7 @@ void main() {
     generateJava(javaOptions, root, sink);
     final String code = sink.toString();
     expect(code, contains('public static class Foobar'));
-    expect(code, contains('private Map<Object, Object> field1;'));
+    expect(code, contains('private @Nullable Map<Object, Object> field1;'));
   });
 
   test('gen nested', () {
@@ -384,8 +438,10 @@ void main() {
       name: 'Outer',
       fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'Nested', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'Nested',
+              isNullable: true,
+            ),
             name: 'nested',
             offset: null)
       ],
@@ -394,8 +450,10 @@ void main() {
       name: 'Nested',
       fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'int', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'int',
+              isNullable: true,
+            ),
             name: 'data',
             offset: null)
       ],
@@ -412,8 +470,9 @@ void main() {
     expect(code, contains('public class Messages'));
     expect(code, contains('public static class Outer'));
     expect(code, contains('public static class Nested'));
-    expect(code, contains('private Nested nested;'));
-    expect(code, contains('Nested.fromMap((Map)nested);'));
+    expect(code, contains('private @Nullable Nested nested;'));
+    expect(code,
+        contains('(nested == null) ? null : Nested.fromMap((Map)nested)'));
     expect(code,
         contains('put("nested", (nested == null) ? null : nested.toMap());'));
   });
@@ -425,27 +484,34 @@ void main() {
           name: 'doSomething',
           arguments: <NamedType>[
             NamedType(
-                type: TypeDeclaration(
-                    baseName: 'Input', isNullable: false, typeArguments: null),
+                type: const TypeDeclaration(
+                  baseName: 'Input',
+                  isNullable: false,
+                ),
                 name: 'arg',
                 offset: null)
           ],
-          returnType: TypeDeclaration(baseName: 'Output', isNullable: false),
+          returnType:
+              const TypeDeclaration(baseName: 'Output', isNullable: false),
           isAsynchronous: true,
         )
       ])
     ], classes: <Class>[
       Class(name: 'Input', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'input',
             offset: null)
       ]),
       Class(name: 'Output', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'output',
             offset: null)
       ])
@@ -456,12 +522,12 @@ void main() {
     final String code = sink.toString();
     expect(code, contains('public interface Api'));
     expect(code, contains('public interface Result<T> {'));
-    expect(
-        code, contains('void doSomething(Input arg, Result<Output> result);'));
+    expect(code, contains('void error(Throwable error);'));
     expect(
         code,
         contains(
-            'api.doSomething(input, result -> { wrapped.put("result", result); reply.reply(wrapped); });'));
+            'void doSomething(@NonNull Input arg, Result<Output> result);'));
+    expect(code, contains('api.doSomething(argArg, resultCallback);'));
     expect(code, contains('channel.setMessageHandler(null)'));
   });
 
@@ -472,27 +538,34 @@ void main() {
           name: 'doSomething',
           arguments: <NamedType>[
             NamedType(
-                type: TypeDeclaration(
-                    baseName: 'Input', isNullable: false, typeArguments: null),
+                type: const TypeDeclaration(
+                  baseName: 'Input',
+                  isNullable: false,
+                ),
                 name: '',
                 offset: null)
           ],
-          returnType: TypeDeclaration(baseName: 'Output', isNullable: false),
+          returnType:
+              const TypeDeclaration(baseName: 'Output', isNullable: false),
           isAsynchronous: true,
         )
       ])
     ], classes: <Class>[
       Class(name: 'Input', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'input',
             offset: null)
       ]),
       Class(name: 'Output', fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'String', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'String',
+              isNullable: true,
+            ),
             name: 'output',
             offset: null)
       ])
@@ -517,8 +590,10 @@ void main() {
       name: 'EnumClass',
       fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
-                baseName: 'Enum1', isNullable: true, typeArguments: null),
+            type: const TypeDeclaration(
+              baseName: 'Enum1',
+              isNullable: true,
+            ),
             name: 'enum1',
             offset: null),
       ],
@@ -539,8 +614,41 @@ void main() {
     expect(code, contains('private Enum1(final int index) {'));
     expect(code, contains('      this.index = index;'));
 
-    expect(code, contains('toMapResult.put("enum1", enum1.index);'));
-    expect(code, contains('fromMapResult.enum1 = Enum1.values()[(int)enum1];'));
+    expect(
+        code,
+        contains(
+            'toMapResult.put("enum1", enum1 == null ? null : enum1.index);'));
+    expect(
+        code,
+        contains(
+            'pigeonResult.setEnum1(enum1 == null ? null : Enum1.values()[(int)enum1])'));
+  });
+
+  test('primitive enum host', () {
+    final Root root = Root(apis: <Api>[
+      Api(name: 'Bar', location: ApiLocation.host, methods: <Method>[
+        Method(
+            name: 'bar',
+            returnType: const TypeDeclaration.voidDeclaration(),
+            arguments: <NamedType>[
+              NamedType(
+                  name: 'foo',
+                  type:
+                      const TypeDeclaration(baseName: 'Foo', isNullable: true))
+            ])
+      ])
+    ], classes: <Class>[], enums: <Enum>[
+      Enum(name: 'Foo', members: <String>['one', 'two'])
+    ]);
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(code, contains('public enum Foo'));
+    expect(
+        code,
+        contains(
+            'Foo fooArg = args.get(0) == null ? null : Foo.values()[(int)args.get(0)];'));
   });
 
   Iterable<String> _makeIterable(String string) sync* {
@@ -564,7 +672,7 @@ void main() {
       name: 'Foobar',
       fields: <NamedType>[
         NamedType(
-            type: TypeDeclaration(
+            type: const TypeDeclaration(
                 baseName: 'List',
                 isNullable: true,
                 typeArguments: <TypeDeclaration>[
@@ -587,16 +695,45 @@ void main() {
     expect(code, contains('List<Long> field1;'));
   });
 
+  test('generics - maps', () {
+    final Class klass = Class(
+      name: 'Foobar',
+      fields: <NamedType>[
+        NamedType(
+            type: const TypeDeclaration(
+                baseName: 'Map',
+                isNullable: true,
+                typeArguments: <TypeDeclaration>[
+                  TypeDeclaration(baseName: 'String', isNullable: true),
+                  TypeDeclaration(baseName: 'String', isNullable: true),
+                ]),
+            name: 'field1',
+            offset: null),
+      ],
+    );
+    final Root root = Root(
+      apis: <Api>[],
+      classes: <Class>[klass],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(code, contains('class Foobar'));
+    expect(code, contains('Map<String, String> field1;'));
+  });
+
   test('host generics argument', () {
     final Root root = Root(
       apis: <Api>[
         Api(name: 'Api', location: ApiLocation.host, methods: <Method>[
           Method(
               name: 'doit',
-              returnType: TypeDeclaration(baseName: 'void', isNullable: false),
+              returnType: const TypeDeclaration.voidDeclaration(),
               arguments: <NamedType>[
                 NamedType(
-                    type: TypeDeclaration(
+                    type: const TypeDeclaration(
                         baseName: 'List',
                         isNullable: false,
                         typeArguments: <TypeDeclaration>[
@@ -614,7 +751,7 @@ void main() {
     const JavaOptions javaOptions = JavaOptions(className: 'Messages');
     generateJava(javaOptions, root, sink);
     final String code = sink.toString();
-    expect(code, contains('doit(List<Long> arg'));
+    expect(code, contains('doit(@NonNull List<Long> arg'));
   });
 
   test('flutter generics argument', () {
@@ -623,10 +760,10 @@ void main() {
         Api(name: 'Api', location: ApiLocation.flutter, methods: <Method>[
           Method(
               name: 'doit',
-              returnType: TypeDeclaration(baseName: 'void', isNullable: false),
+              returnType: const TypeDeclaration.voidDeclaration(),
               arguments: <NamedType>[
                 NamedType(
-                    type: TypeDeclaration(
+                    type: const TypeDeclaration(
                         baseName: 'List',
                         isNullable: false,
                         typeArguments: <TypeDeclaration>[
@@ -644,7 +781,7 @@ void main() {
     const JavaOptions javaOptions = JavaOptions(className: 'Messages');
     generateJava(javaOptions, root, sink);
     final String code = sink.toString();
-    expect(code, contains('doit(List<Long> arg'));
+    expect(code, contains('doit(@NonNull List<Long> arg'));
   });
 
   test('host generics return', () {
@@ -653,7 +790,7 @@ void main() {
         Api(name: 'Api', location: ApiLocation.host, methods: <Method>[
           Method(
               name: 'doit',
-              returnType: TypeDeclaration(
+              returnType: const TypeDeclaration(
                   baseName: 'List',
                   isNullable: false,
                   typeArguments: <TypeDeclaration>[
@@ -679,7 +816,7 @@ void main() {
         Api(name: 'Api', location: ApiLocation.flutter, methods: <Method>[
           Method(
               name: 'doit',
-              returnType: TypeDeclaration(
+              returnType: const TypeDeclaration(
                   baseName: 'List',
                   isNullable: false,
                   typeArguments: <TypeDeclaration>[
@@ -697,5 +834,254 @@ void main() {
     final String code = sink.toString();
     expect(code, contains('doit(Reply<List<Long>> callback)'));
     expect(code, contains('List<Long> output ='));
+  });
+
+  test('host multiple args', () {
+    final Root root = Root(apis: <Api>[
+      Api(name: 'Api', location: ApiLocation.host, methods: <Method>[
+        Method(
+          name: 'add',
+          arguments: <NamedType>[
+            NamedType(
+                name: 'x',
+                type:
+                    const TypeDeclaration(isNullable: false, baseName: 'int')),
+            NamedType(
+                name: 'y',
+                type:
+                    const TypeDeclaration(isNullable: false, baseName: 'int')),
+          ],
+          returnType: const TypeDeclaration(baseName: 'int', isNullable: false),
+          isAsynchronous: false,
+        )
+      ])
+    ], classes: <Class>[], enums: <Enum>[]);
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(code, contains('class Messages'));
+    expect(code, contains('Long add(@NonNull Long x, @NonNull Long y)'));
+    expect(
+        code, contains('ArrayList<Object> args = (ArrayList<Object>)message;'));
+    expect(code, contains('Number xArg = (Number)args.get(0)'));
+    expect(code, contains('Number yArg = (Number)args.get(1)'));
+    expect(
+        code,
+        contains(
+            'Long output = api.add((xArg == null) ? null : xArg.longValue(), (yArg == null) ? null : yArg.longValue())'));
+  });
+
+  test('flutter multiple args', () {
+    final Root root = Root(apis: <Api>[
+      Api(name: 'Api', location: ApiLocation.flutter, methods: <Method>[
+        Method(
+          name: 'add',
+          arguments: <NamedType>[
+            NamedType(
+                name: 'x',
+                type:
+                    const TypeDeclaration(isNullable: false, baseName: 'int')),
+            NamedType(
+                name: 'y',
+                type:
+                    const TypeDeclaration(isNullable: false, baseName: 'int')),
+          ],
+          returnType: const TypeDeclaration(baseName: 'int', isNullable: false),
+          isAsynchronous: false,
+        )
+      ])
+    ], classes: <Class>[], enums: <Enum>[]);
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(code, contains('class Messages'));
+    expect(code, contains('BasicMessageChannel<Object> channel'));
+    expect(code, contains('Long output'));
+    expect(
+        code,
+        contains(
+            'public void add(@NonNull Long xArg, @NonNull Long yArg, Reply<Long> callback)'));
+    expect(
+        code,
+        contains(
+            'channel.send(new ArrayList<Object>(Arrays.asList(xArg, yArg)), channelReply ->'));
+  });
+
+  test('return nullable host', () {
+    final Root root = Root(
+      apis: <Api>[
+        Api(name: 'Api', location: ApiLocation.host, methods: <Method>[
+          Method(
+              name: 'doit',
+              returnType: const TypeDeclaration(
+                baseName: 'int',
+                isNullable: true,
+              ),
+              arguments: <NamedType>[])
+        ])
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(code, contains('@Nullable Long doit();'));
+  });
+
+  test('return nullable host async', () {
+    final Root root = Root(
+      apis: <Api>[
+        Api(name: 'Api', location: ApiLocation.host, methods: <Method>[
+          Method(
+              name: 'doit',
+              returnType: const TypeDeclaration(
+                baseName: 'int',
+                isNullable: true,
+              ),
+              isAsynchronous: true,
+              arguments: <NamedType>[])
+        ])
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    // Java doesn't accept nullability annotations in type arguments.
+    expect(code, contains('Result<Long>'));
+  });
+
+  test('nullable argument host', () {
+    final Root root = Root(
+      apis: <Api>[
+        Api(name: 'Api', location: ApiLocation.host, methods: <Method>[
+          Method(
+              name: 'doit',
+              returnType: const TypeDeclaration.voidDeclaration(),
+              arguments: <NamedType>[
+                NamedType(
+                    name: 'foo',
+                    type: const TypeDeclaration(
+                      baseName: 'int',
+                      isNullable: true,
+                    )),
+              ])
+        ])
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(code, contains('  void doit(@Nullable Long foo);'));
+  });
+
+  test('nullable argument flutter', () {
+    final Root root = Root(
+      apis: <Api>[
+        Api(name: 'Api', location: ApiLocation.flutter, methods: <Method>[
+          Method(
+              name: 'doit',
+              returnType: const TypeDeclaration.voidDeclaration(),
+              arguments: <NamedType>[
+                NamedType(
+                    name: 'foo',
+                    type: const TypeDeclaration(
+                      baseName: 'int',
+                      isNullable: true,
+                    )),
+              ])
+        ])
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(
+        code,
+        contains(
+            'public void doit(@Nullable Long fooArg, Reply<Void> callback) {'));
+  });
+
+  test('background platform channel', () {
+    final Root root = Root(
+      apis: <Api>[
+        Api(name: 'Api', location: ApiLocation.host, methods: <Method>[
+          Method(
+              name: 'doit',
+              returnType: const TypeDeclaration.voidDeclaration(),
+              arguments: <NamedType>[
+                NamedType(
+                    name: 'foo',
+                    type: const TypeDeclaration(
+                      baseName: 'int',
+                      isNullable: true,
+                    )),
+              ],
+              taskQueueType: TaskQueueType.serialBackgroundThread)
+        ])
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(
+        code,
+        contains(
+            'BinaryMessenger.TaskQueue taskQueue = binaryMessenger.makeBackgroundTaskQueue();'));
+    expect(
+        code,
+        contains(
+            'new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.Api.doit", getCodec(), taskQueue)'));
+  });
+
+  test('generated annotation', () {
+    final Class klass = Class(
+      name: 'Foobar',
+      fields: <NamedType>[],
+    );
+    final Root root = Root(
+      apis: <Api>[],
+      classes: <Class>[klass],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions =
+        JavaOptions(className: 'Messages', useGeneratedAnnotation: true);
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(code, contains('@javax.annotation.Generated("dev.flutter.pigeon")'));
+  });
+
+  test('no generated annotation', () {
+    final Class klass = Class(
+      name: 'Foobar',
+      fields: <NamedType>[],
+    );
+    final Root root = Root(
+      apis: <Api>[],
+      classes: <Class>[klass],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const JavaOptions javaOptions = JavaOptions(className: 'Messages');
+    generateJava(javaOptions, root, sink);
+    final String code = sink.toString();
+    expect(code,
+        isNot(contains('@javax.annotation.Generated("dev.flutter.pigeon")')));
   });
 }

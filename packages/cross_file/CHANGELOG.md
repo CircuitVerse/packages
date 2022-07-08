@@ -1,3 +1,19 @@
+## 0.3.3+1
+
+* Fixes `lastModified` unimplemented error description.
+
+## 0.3.3
+
+* Removes unused Flutter dependencies.
+
+## 0.3.2
+
+* Improve web implementation so it can stream larger files.
+
+## 0.3.1+5
+
+* Unify XFile interface for web and mobile platforms
+
 ## 0.3.1+4
 
 * The `dart:io` implementation of `saveTo` now does a file copy for path-based

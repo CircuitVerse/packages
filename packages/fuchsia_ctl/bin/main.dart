@@ -8,13 +8,11 @@ import 'package:args/args.dart';
 import 'package:file/file.dart';
 import 'package:file/local.dart';
 import 'package:fuchsia_ctl/fuchsia_ctl.dart';
-import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 import 'package:retry/retry.dart';
 import 'package:uuid/uuid.dart';
 
-typedef AsyncResult = Future<OperationResult> Function(
-    String, DevFinder, ArgResults);
+typedef AsyncResult = Future<OperationResult> Function(String, FFX, ArgResults);
 
 const Map<String, AsyncResult> commands = <String, AsyncResult>{
   'emu': emulator,
@@ -36,9 +34,8 @@ Future<void> main(List<String> args) async {
         abbr: 'd',
         help: 'The device node name to use. '
             'If not specified, the first discoverable device will be used.')
-    ..addOption('device-finder-path',
-        defaultsTo: './device-finder',
-        help: 'The path to the device-finder executable.')
+    ..addOption('ffx-path',
+        defaultsTo: './ffx', help: 'The path to the ffx executable.')
     ..addFlag('help', defaultsTo: false, help: 'Prints help.');
 
   /// This is a blocking command and will run until exited.
@@ -130,13 +127,13 @@ Future<void> main(List<String> args) async {
 
   final AsyncResult command = commands[results.command.name];
   if (command == null) {
-    stderr.writeln('Unkown command ${results.command.name}.');
+    stderr.writeln('Unknown command ${results.command.name}.');
     stderr.writeln(parser.usage);
     exit(-1);
   }
   final OperationResult result = await command(
     results['device-name'],
-    DevFinder(results['device-finder-path']),
+    FFX(results['ffx-path']),
     results.command,
   );
   if (!result.success) {
@@ -144,10 +141,9 @@ Future<void> main(List<String> args) async {
   }
 }
 
-@visibleForTesting
 Future<OperationResult> emulator(
   String deviceName,
-  DevFinder devFinder,
+  FFX ffx,
   ArgResults args,
 ) async {
   final Emulator emulator = Emulator(
@@ -168,14 +164,13 @@ Future<OperationResult> emulator(
   );
 }
 
-@visibleForTesting
 Future<OperationResult> ssh(
   String deviceName,
-  DevFinder devFinder,
+  FFX ffx,
   ArgResults args,
 ) async {
   const SshClient sshClient = SshClient();
-  final String targetIp = await devFinder.getTargetAddress(deviceName);
+  final String targetIp = await ffx.getTargetAddress(deviceName);
   final String identityFile = args['identity-file'];
   final String outputFile = args['log-file'];
   if (args['interactive']) {
@@ -201,10 +196,9 @@ Future<OperationResult> ssh(
   return result;
 }
 
-@visibleForTesting
 Future<OperationResult> pave(
   String deviceName,
-  DevFinder devFinder,
+  FFX ffx,
   ArgResults args,
 ) async {
   const ImagePaver paver = ImagePaver();
@@ -225,10 +219,9 @@ Future<OperationResult> pave(
   }, retryIf: (Exception e) => e is RetryException);
 }
 
-@visibleForTesting
 Future<OperationResult> pm(
   String deviceName,
-  DevFinder devFinder,
+  FFX ffx,
   ArgResults args,
 ) async {
   final PackageServer server = PackageServer(args['pm-path']);
@@ -246,10 +239,9 @@ Future<OperationResult> pm(
   }
 }
 
-@visibleForTesting
 Future<OperationResult> pushPackages(
   String deviceName,
-  DevFinder devFinder,
+  FFX ffx,
   ArgResults args,
 ) async {
   final PackageServer server = PackageServer(args['pm-path']);
@@ -258,11 +250,11 @@ Future<OperationResult> pushPackages(
   final String identityFile = args['identity-file'];
 
   const FileSystem fs = LocalFileSystem();
-  final String uuid = Uuid().v4();
+  final String uuid = const Uuid().v4();
   final Directory repo = fs.systemTempDirectory.childDirectory('repo_$uuid');
   const Tar tar = SystemTar();
   try {
-    final String targetIp = await devFinder.getTargetAddress(deviceName);
+    final String targetIp = await ffx.getTargetAddress(deviceName);
     final AmberCtl amberCtl = AmberCtl(targetIp, identityFile);
 
     stdout.writeln('Untaring $repoArchive to ${repo.path}');
@@ -288,7 +280,7 @@ Future<OperationResult> pushPackages(
     return OperationResult.success(
         info: 'Successfully pushed $packages to $targetIp.');
   } finally {
-    // We may not have created the repo if dev finder errored first.
+    // We may not have created the repo if ffx errored first.
     if (repo.existsSync()) {
       repo.deleteSync(recursive: true);
     }
@@ -298,10 +290,9 @@ Future<OperationResult> pushPackages(
   }
 }
 
-@visibleForTesting
 Future<OperationResult> test(
   String deviceName,
-  DevFinder devFinder,
+  FFX ffx,
   ArgResults args,
 ) async {
   const FileSystem fs = LocalFileSystem();
@@ -315,7 +306,7 @@ Future<OperationResult> test(
   final String arguments = args['arguments'];
   Directory repo;
   if (args['packages-directory'] == null) {
-    final String uuid = Uuid().v4();
+    final String uuid = const Uuid().v4();
     repo = fs.systemTempDirectory.childDirectory('repo_$uuid');
     server = PackageServer(args['pm-path']);
   } else {
@@ -332,7 +323,7 @@ Future<OperationResult> test(
   }
 
   try {
-    final String targetIp = await devFinder.getTargetAddress(deviceName);
+    final String targetIp = await ffx.getTargetAddress(deviceName);
     final AmberCtl amberCtl = AmberCtl(targetIp, identityFile);
     OperationResult result;
     stdout.writeln('Using ${repo.path} as repo to serve to $targetIp...');
@@ -379,7 +370,7 @@ Future<OperationResult> test(
     }
     return testResult;
   } finally {
-    // We may not have created the repo if dev finder errored first.
+    // We may not have created the repo if ffx errored first.
     if (repo.existsSync() && args['packages-directory'] != null) {
       repo.deleteSync(recursive: true);
     }

@@ -8,21 +8,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_unit_tests/all_datatypes.dart';
 import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 import 'all_datatypes_test.mocks.dart';
+import 'test_util.dart';
 
 @GenerateMocks(<Type>[BinaryMessenger])
 void main() {
   test('with null values', () async {
     final Everything everything = Everything();
     final BinaryMessenger mockMessenger = MockBinaryMessenger();
-    when(mockMessenger.send('dev.flutter.pigeon.HostEverything.echo', any))
-        .thenAnswer((Invocation realInvocation) async {
-      const MessageCodec<Object?> codec = HostEverything.codec;
-      final Object input =
-          codec.decodeMessage(realInvocation.positionalArguments[1])!;
-      return codec.encodeMessage(<String, Object>{'result': input});
-    });
+    echoOneArgument(
+      mockMessenger,
+      'dev.flutter.pigeon.HostEverything.echo',
+      HostEverything.codec,
+    );
     final HostEverything api = HostEverything(binaryMessenger: mockMessenger);
     final Everything result = await api.echo(everything);
     expect(result.aBool, isNull);
@@ -37,6 +35,7 @@ void main() {
     expect(result.aMap, isNull);
     expect(result.nestedList, isNull);
     expect(result.mapWithAnnotations, isNull);
+    expect(result.mapWithObject, isNull);
   });
 
   test('with values', () async {
@@ -56,14 +55,13 @@ void main() {
       <bool?>[true]
     ];
     everything.mapWithAnnotations = <String?, String?>{'hello': 'world'};
+    everything.mapWithObject = <String?, Object?>{'hello': 1234};
     final BinaryMessenger mockMessenger = MockBinaryMessenger();
-    when(mockMessenger.send('dev.flutter.pigeon.HostEverything.echo', any))
-        .thenAnswer((Invocation realInvocation) async {
-      const MessageCodec<Object?> codec = HostEverything.codec;
-      final Object? input =
-          codec.decodeMessage(realInvocation.positionalArguments[1]);
-      return codec.encodeMessage(<String, Object>{'result': input!});
-    });
+    echoOneArgument(
+      mockMessenger,
+      'dev.flutter.pigeon.HostEverything.echo',
+      HostEverything.codec,
+    );
     final HostEverything api = HostEverything(binaryMessenger: mockMessenger);
     final Everything result = await api.echo(everything);
     expect(result.aBool, everything.aBool);
@@ -78,5 +76,6 @@ void main() {
     expect(result.aMap, everything.aMap);
     expect(result.aList, everything.aList);
     expect(result.mapWithAnnotations, everything.mapWithAnnotations);
+    expect(result.mapWithObject, everything.mapWithObject);
   });
 }

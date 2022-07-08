@@ -1,3 +1,8 @@
+## 0.0.25
+
+- Fix `unnecessary_import` lint errors.
+- Use `ffx` for device discovery instead of `device-finder`
+
 ## 0.0.24
 
 - Flush the content of iosink when writing output to a file.

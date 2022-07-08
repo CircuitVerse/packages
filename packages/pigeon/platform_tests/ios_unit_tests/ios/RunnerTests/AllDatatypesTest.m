@@ -15,29 +15,30 @@
 @implementation AllDatatypesTest
 
 - (void)testAllNull {
-  Everything* everything = [[Everything alloc] init];
-  EchoBinaryMessenger* binaryMessenger = [[EchoBinaryMessenger alloc] init];
-  FlutterEverything* api = [[FlutterEverything alloc] initWithBinaryMessenger:binaryMessenger];
-  XCTestExpectation* expectation = [self expectationWithDescription:@"callback"];
-  [api echo:everything
-      completion:^(Everything* _Nonnull result, NSError* _Nullable error) {
-        XCTAssertNil(result.aBool);
-        XCTAssertNil(result.anInt);
-        XCTAssertNil(result.aDouble);
-        XCTAssertNil(result.aString);
-        XCTAssertNil(result.aByteArray);
-        XCTAssertNil(result.a4ByteArray);
-        XCTAssertNil(result.a8ByteArray);
-        XCTAssertNil(result.aFloatArray);
-        XCTAssertNil(result.aList);
-        XCTAssertNil(result.aMap);
-        [expectation fulfill];
-      }];
+  Everything *everything = [[Everything alloc] init];
+  EchoBinaryMessenger *binaryMessenger =
+      [[EchoBinaryMessenger alloc] initWithCodec:FlutterEverythingGetCodec()];
+  FlutterEverything *api = [[FlutterEverything alloc] initWithBinaryMessenger:binaryMessenger];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"callback"];
+  [api echoEverything:everything
+           completion:^(Everything *_Nonnull result, NSError *_Nullable error) {
+             XCTAssertNil(result.aBool);
+             XCTAssertNil(result.anInt);
+             XCTAssertNil(result.aDouble);
+             XCTAssertNil(result.aString);
+             XCTAssertNil(result.aByteArray);
+             XCTAssertNil(result.a4ByteArray);
+             XCTAssertNil(result.a8ByteArray);
+             XCTAssertNil(result.aFloatArray);
+             XCTAssertNil(result.aList);
+             XCTAssertNil(result.aMap);
+             [expectation fulfill];
+           }];
   [self waitForExpectations:@[ expectation ] timeout:1.0];
 }
 
 - (void)testAllEquals {
-  Everything* everything = [[Everything alloc] init];
+  Everything *everything = [[Everything alloc] init];
   everything.aBool = @NO;
   everything.anInt = @(1);
   everything.aDouble = @(2.0);
@@ -51,24 +52,27 @@
   everything.aFloatArray = [FlutterStandardTypedData
       typedDataWithFloat64:[@"12345678" dataUsingEncoding:NSUTF8StringEncoding]];
   everything.aList = @[ @(1), @(2) ];
-  everything.aMap = @{ @"hello" : @(1234) };
-  EchoBinaryMessenger* binaryMessenger = [[EchoBinaryMessenger alloc] init];
-  FlutterEverything* api = [[FlutterEverything alloc] initWithBinaryMessenger:binaryMessenger];
-  XCTestExpectation* expectation = [self expectationWithDescription:@"callback"];
-  [api echo:everything
-      completion:^(Everything* _Nonnull result, NSError* _Nullable error) {
-        XCTAssertEqual(result.aBool, everything.aBool);
-        XCTAssertEqual(result.anInt, everything.anInt);
-        XCTAssertEqual(result.aDouble, everything.aDouble);
-        XCTAssertEqualObjects(result.aString, everything.aString);
-        XCTAssertEqualObjects(result.aByteArray.data, everything.aByteArray.data);
-        XCTAssertEqualObjects(result.a4ByteArray.data, everything.a4ByteArray.data);
-        XCTAssertEqualObjects(result.a8ByteArray.data, everything.a8ByteArray.data);
-        XCTAssertEqualObjects(result.aFloatArray.data, everything.aFloatArray.data);
-        XCTAssertEqualObjects(result.aList, everything.aList);
-        XCTAssertEqualObjects(result.aMap, everything.aMap);
-        [expectation fulfill];
-      }];
+  everything.aMap = @{@"hello" : @(1234)};
+  everything.mapWithObject = @{@"hello" : @(1234), @"goodbye" : @"world"};
+  EchoBinaryMessenger *binaryMessenger =
+      [[EchoBinaryMessenger alloc] initWithCodec:FlutterEverythingGetCodec()];
+  FlutterEverything *api = [[FlutterEverything alloc] initWithBinaryMessenger:binaryMessenger];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"callback"];
+  [api echoEverything:everything
+           completion:^(Everything *_Nonnull result, NSError *_Nullable error) {
+             XCTAssertEqual(result.aBool, everything.aBool);
+             XCTAssertEqual(result.anInt, everything.anInt);
+             XCTAssertEqual(result.aDouble, everything.aDouble);
+             XCTAssertEqualObjects(result.aString, everything.aString);
+             XCTAssertEqualObjects(result.aByteArray.data, everything.aByteArray.data);
+             XCTAssertEqualObjects(result.a4ByteArray.data, everything.a4ByteArray.data);
+             XCTAssertEqualObjects(result.a8ByteArray.data, everything.a8ByteArray.data);
+             XCTAssertEqualObjects(result.aFloatArray.data, everything.aFloatArray.data);
+             XCTAssertEqualObjects(result.aList, everything.aList);
+             XCTAssertEqualObjects(result.aMap, everything.aMap);
+             XCTAssertEqualObjects(result.mapWithObject, everything.mapWithObject);
+             [expectation fulfill];
+           }];
   [self waitForExpectations:@[ expectation ] timeout:1.0];
 }
 

@@ -1,26 +1,54 @@
-gcp_credentials: ENCRYPTED[!0e63b52bd7e4fda1cd7b7bf2b4fe515a27fadbeaced01f5ad8b699b81d3611ed64c5d3271bcd8426dd914ef41cba48a0!]
+gcp_credentials: ENCRYPTED[!ebad0a1f4f7a446b77944c33651460a7ab010b4617273cb016cf354eb8fc22aa92e37a3c58bfa4a0c40a799351e027a6!]
 
+# Run on PRs and main branch post submit only. Don't run tests when tagging.
+only_if: $CIRRUS_TAG == '' && ($CIRRUS_PR != '' || $CIRRUS_BRANCH == 'main')
 env:
   CHANNEL: "master" # Default to master when not explicitly set by a task.
 
+install_chrome_linux_template: &INSTALL_CHROME_LINUX
+  env:
+    CHROME_NO_SANDBOX: true
+    CHROME_DOWNLOAD_DIR: /tmp/chromium
+    CHROME_EXECUTABLE: $CHROME_DOWNLOAD_DIR/chrome-linux/chrome
+    CHROMEDRIVER_EXECUTABLE: $CHROME_DOWNLOAD_DIR/chromedriver/chromedriver
+    PATH: $PATH:$CHROME_DOWNLOAD_DIR/chrome-linux
+  install_chromium_script:
+    # Install a pinned version of Chromium and its corresponding ChromeDriver.
+    # Setting CHROME_EXECUTABLE above causes this version to be used for tests.
+    - ./script/install_chromium.sh "$CHROME_DIR"
+
 tool_setup_template: &TOOL_SETUP_TEMPLATE
   tool_setup_script:
-    - git fetch origin master # To set FETCH_HEAD for "git merge-base" to work
-    # Pinned version of the plugin tools, to avoid breakage in this repository
-    # when pushing updates from flutter/plugins.
-    - dart pub global activate flutter_plugin_tools 0.3.0
+    - .ci/scripts/prepare_tool.sh
+
+macos_template: &MACOS_TEMPLATE
+  # Only one macOS task can run in parallel without credits, so use them for
+  # PRs on macOS.
+  use_compute_credits: $CIRRUS_USER_COLLABORATOR == 'true'
+  osx_instance:
+    image: big-sur-xcode-13
 
 flutter_upgrade_template: &FLUTTER_UPGRADE_TEMPLATE
   upgrade_flutter_script:
+    # Master uses a pinned, auto-rolled version to prevent out-of-band CI
+    # failures due to changes in Flutter.
+    # TODO(stuartmorgan): Investigate an autoroller for stable as well.
+    - TARGET_TREEISH=$CHANNEL
+    - if [[ "$CHANNEL" == "master" ]]; then
+    -   TARGET_TREEISH=$(< .ci/flutter_$CHANNEL.version)
+    - fi
     # Ensure that the repository has all the branches.
     - cd $FLUTTER_HOME
     - git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
     - git fetch origin
-    # Switch to the requested branch.
-    - git checkout $CHANNEL
-    # Reset to upstream branch, rather than using pull, since the base image
-    # can sometimes be in a state where it has diverged from upstream (!).
-    - git reset --hard @{u}
+    # Switch to the requested channel.
+    - git checkout $TARGET_TREEISH
+    # When using a branch rather than a hash or version tag, reset to the
+    # upstream branch rather than using pull, since the base image can sometimes
+    # be in a state where it has diverged from upstream (!).
+    - if [[ "$TARGET_TREEISH" == "$CHANNEL" ]] && [[ "$CHANNEL" != *"."* ]]; then
+    -   git reset --hard @{u}
+    - fi
     # Run doctor to allow auditing of what version of Flutter the run is using.
     - flutter doctor -v
   << : *TOOL_SETUP_TEMPLATE
@@ -28,7 +56,7 @@ flutter_upgrade_template: &FLUTTER_UPGRADE_TEMPLATE
 task:
   gke_container:
     dockerfile: .ci/Dockerfile
-    builder_image_name: docker-builder # gce vm image
+    builder_image_name: docker-builder-linux # gce vm image
     builder_image_project: flutter-cirrus
     cluster_name: test-cluster
     zone: us-central1-a
@@ -37,73 +65,202 @@ task:
     memory: 8G
   << : *FLUTTER_UPGRADE_TEMPLATE
   matrix:
+    ### Platform-agnostic tasks ###
     - name: format+analyze
       always:
-        format_script: ./script/tool_runner.sh format --fail-on-change --clang-format=clang-format-5.0
+        format_script: ./script/tool_runner.sh format --fail-on-change
         license_script: dart pub global run flutter_plugin_tools license-check
-        analyze_script: ./script/tool_runner.sh analyze --custom-analysis=web_benchmarks/testing/test_app,flutter_lints/example
+        analyze_script:
+          - ./script/tool_runner.sh analyze --custom-analysis=script/configs/custom_analysis.yaml
+        pathified_analyze_script:
+          # Run analysis with path-based dependencies to ensure that publishing
+          # the changes won't break analysis of other packages in the respository
+          # that depend on it.
+          - ./script/tool_runner.sh make-deps-path-based  --target-dependencies-with-non-breaking-updates 
+          # This uses --run-on-dirty-packages rather than --packages-for-branch
+          # since only the packages changed by 'make-deps-path-based' need to be
+          # checked.
+          - dart pub global run flutter_plugin_tools analyze --run-on-dirty-packages --custom-analysis=script/configs/custom_analysis.yaml
+          # Restore the tree to a clean state
+          - git checkout .
         pubspec_script: ./script/tool_runner.sh pubspec-check
+        readme_script:
+          - ./script/tool_runner.sh readme-check
+          # Re-run with --require-excerpts, skipping packages that still need
+          # to be converted. Once https://github.com/flutter/flutter/issues/102679
+          # has been fixed, this can be removed and there can just be a single
+          # run with --require-excerpts and no exclusions.
+          - ./script/tool_runner.sh readme-check --require-excerpts --exclude=script/configs/temp_exclude_excerpt.yaml
+    - name: readme_excerpts
+      env:
+        CIRRUS_CLONE_SUBMODULES: true
+      script: ./script/tool_runner.sh update-excerpts --fail-on-change
+    # Does a sanity check that packages at least pass analysis on the N-1 and N-2
+    # versions of Flutter stable if the package claims to support that version.
+    # This is to minimize accidentally making changes that break old versions
+    # (which we don't commit to supporting, but don't want to actively break)
+    # without updating the constraints.
+    # Note: The versions below should be manually updated after a new stable
+    # version comes out.
+    - name: legacy-version-analyze
+      depends_on: format+analyze
+      env:
+        matrix:
+          CHANNEL: "2.10.5"
+          CHANNEL: "2.8.1"
+      analyze_script:
+        # Exclude:
+        # - flutter_lints: does not depend on flutter, is only constrained by
+        #   Dart SDK version.
+        - ./script/tool_runner.sh analyze --skip-if-not-supporting-flutter-version="$CHANNEL" --custom-analysis=script/configs/custom_analysis.yaml --exclude=flutter_lints
     - name: publishable
-      version_script: ./script/tool_runner.sh version-check
-      publishable_script: ./script/tool_runner.sh publish-check
+      env:
+        # TODO(stuartmorgan): Remove once the fix for https://github.com/dart-lang/pub/issues/3152
+        # rolls into Flutter master.
+        CHANNEL: stable
+        CHANGE_DESC: "/tmp/change-description.txt"
+      version_script:
+        # For pre-submit, pass the PR description to the script to allow for
+        # version check overrides.
+        # For post-submit, ignore missing version/CHANGELOG detection; the PR
+        # description isn't reliably part of the commit message, so using the
+        # same flags as for presubmit would likely result in false-positive
+        # post-submit failures.
+        - if [[ $CIRRUS_PR == "" ]]; then
+        -   ./script/tool_runner.sh version-check
+        - else
+        -   echo "$CIRRUS_CHANGE_MESSAGE" > "$CHANGE_DESC"
+        -   ./script/tool_runner.sh version-check --check-for-missing-changes --change-description-file="$CHANGE_DESC"
+        - fi
+      publishable_script: ./script/tool_runner.sh publish-check --allow-pre-release
       depends_on:
         - format+analyze
-    - name: test
-      # Exclude flutter_image; its tests need a test server, so are run via local_tests.sh
-      script: ./script/tool_runner.sh test --exclude=flutter_image
-      depends_on:
-        - format+analyze
-    - name: build-apks+java-test
+    - name: dart_unit_tests
       env:
         matrix:
           CHANNEL: "master"
           CHANNEL: "stable"
-        matrix:
-          BUILD_SHARDING: "--shardIndex 0 --shardCount 2"
-          BUILD_SHARDING: "--shardIndex 1 --shardCount 2"
-      script:
-        - ./script/tool_runner.sh build-examples --apk
-        - ./script/tool_runner.sh java-test  # must come after apk build
+      unit_test_script:
+        - ./script/tool_runner.sh test --exclude=script/configs/dart_unit_tests_exceptions.yaml
+      pathified_unit_test_script:
+        # Run tests with path-based dependencies to ensure that publishing
+        # the changes won't break tests of other packages in the respository
+        # that depend on it.
+        - ./script/tool_runner.sh make-deps-path-based --target-dependencies-with-non-breaking-updates
+        - dart pub global run flutter_plugin_tools test --run-on-dirty-packages --exclude=script/configs/dart_unit_tests_exceptions.yaml
       depends_on:
         - format+analyze
+    - name: linux-custom_package_tests
+      env:
+        PATH: $PATH:/usr/local/bin
+        matrix:
+          CHANNEL: "master"
+          CHANNEL: "stable"
+      << : *INSTALL_CHROME_LINUX
+      local_tests_script:
+        # pigeon tests currently don't support Linux:
+        #   https://github.com/flutter/flutter/issues/100386
+        # flutter_image
+        #   https://github.com/flutter/flutter/issues/100387
+        - if [[ "$CHANNEL" == "master" ]]; then
+        -   ./script/tool_runner.sh custom-test --exclude=pigeon
+        - else
+        -   ./script/tool_runner.sh custom-test --exclude=pigeon,flutter_image
+        - fi
+    ### Android tasks ###
+    - name: android-platform_tests
+      env:
+        matrix:
+          CHANNEL: "master"
+          CHANNEL: "stable"
+      build_script:
+        # extension_google_sign_in_as_googleapis_auth is currently not building, see
+        # https://github.com/flutter/flutter/issues/89301
+        - ./script/tool_runner.sh build-examples --apk --exclude=extension_google_sign_in_as_googleapis_auth
+      native_unit_test_scipt:
+        - ./script/tool_runner.sh native-test --android --no-integration
+      depends_on:
+        - format+analyze
+    ### Web tasks ###
+    - name: web-platform_tests
+      env:
+        matrix:
+          CHANNEL: "master"
+          CHANNEL: "stable"
+      << : *INSTALL_CHROME_LINUX
+      chromedriver_background_script:
+        - $CHROMEDRIVER_EXECUTABLE --port=4444
+      build_script:
+        - ./script/tool_runner.sh build-examples --web
+      drive_script:
+        - ./script/tool_runner.sh drive-examples --web
     - name: web_benchmarks_test
-      install_chromium_script:
-        - ./script/install_chromium.sh
+      env:
+        matrix:
+          CHROMIUM_BUILD: "768968" # Chromium 84.0.4147.0
+          CHROMIUM_BUILD: "950363" # Chromium 98.0.4758.0
+      << : *INSTALL_CHROME_LINUX
       script:
-        - export CHROME_EXECUTABLE=$(pwd)/.chromium/chrome-linux/chrome
         - cd packages/web_benchmarks/testing/test_app
         - flutter packages get
         - cd ../..
         - flutter packages get
         - dart testing/web_benchmarks_test.dart
+    ### Linux desktop tasks ###
+    - name: linux-platform_tests
+      env:
+        matrix:
+          CHANNEL: "master"
+          CHANNEL: "stable"
+      build_script:
+        - flutter config --enable-linux-desktop
+        - ./script/tool_runner.sh build-examples --linux
+      native_test_script:
+        - ./script/tool_runner.sh native-test --linux --no-integration
 
 task:
-  name: build-ipas
-  use_compute_credits: $CIRRUS_USER_COLLABORATOR == 'true'
-  osx_instance:
-    image: big-sur-xcode-12.4
-  env:
-    PATH: $PATH:/usr/local/bin
-    matrix:
-      CHANNEL: "master"
-      CHANNEL: "stable"
-    matrix:
-      BUILD_SHARDING: "--shardIndex 0 --shardCount 2"
-      BUILD_SHARDING: "--shardIndex 1 --shardCount 2"
+  << : *MACOS_TEMPLATE
   << : *FLUTTER_UPGRADE_TEMPLATE
-  build_script:
-    - ./script/tool_runner.sh build-examples --ipa
-
-task:
-  name: local_tests
-  use_compute_credits: $CIRRUS_USER_COLLABORATOR == 'true'
-  osx_instance:
-    image: big-sur-xcode-12.4
-  env:
-    PATH: $PATH:/usr/local/bin
-    matrix:
-      CHANNEL: "master"
-      CHANNEL: "stable"
-  << : *FLUTTER_UPGRADE_TEMPLATE
-  local_tests_script:
-    - ./script/local_tests.sh
+  matrix:
+   ### iOS tasks ###
+    - name: ios-platform_tests
+      env:
+        PATH: $PATH:/usr/local/bin
+        matrix:
+          CHANNEL: "master"
+          CHANNEL: "stable"
+      create_simulator_script:
+        - xcrun simctl list
+        - xcrun simctl create Flutter-iPhone com.apple.CoreSimulator.SimDeviceType.iPhone-11 com.apple.CoreSimulator.SimRuntime.iOS-15-0 | xargs xcrun simctl boot
+      build_script:
+        - ./script/tool_runner.sh build-examples --ios
+      native_test_script:
+        - ./script/tool_runner.sh native-test --ios --ios-destination "platform=iOS Simulator,name=iPhone 11,OS=latest"
+    - name: ios-custom_package_tests
+      env:
+        PATH: $PATH:/usr/local/bin
+        matrix:
+          CHANNEL: "master"
+          CHANNEL: "stable"
+      local_tests_script:
+        # flutter_image
+        #   https://github.com/flutter/flutter/issues/100387
+        # cross_file
+        #   Custom tests need Chrome. (They run in linux-custom_package_tests)
+        - if [[ "$CHANNEL" == "master" ]]; then
+        -   ./script/tool_runner.sh custom-test --exclude=cross_file
+        - else
+        -   ./script/tool_runner.sh custom-test --exclude=cross_file,flutter_image
+        - fi
+    ### macOS desktop tasks ###
+    - name: macos-platform_tests
+      env:
+        matrix:
+          CHANNEL: "master"
+          CHANNEL: "stable"
+        PATH: $PATH:/usr/local/bin
+      build_script:
+        - flutter config --enable-macos-desktop
+        - ./script/tool_runner.sh build-examples --macos
+      native_test_script:
+        - ./script/tool_runner.sh native-test --macos

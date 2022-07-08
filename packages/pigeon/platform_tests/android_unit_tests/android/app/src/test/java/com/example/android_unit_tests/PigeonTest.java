@@ -10,6 +10,8 @@ import static org.mockito.Mockito.*;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MessageCodec;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -17,49 +19,49 @@ import org.mockito.ArgumentCaptor;
 public class PigeonTest {
   @Test
   public void toMapAndBack() {
-    Pigeon.SetRequest request = new Pigeon.SetRequest();
+    Pigeon.AndroidSetRequest request = new Pigeon.AndroidSetRequest();
     request.setValue(1234l);
-    request.setState(Pigeon.LoadingState.complete);
+    request.setState(Pigeon.AndroidLoadingState.complete);
     Map<String, Object> map = request.toMap();
-    Pigeon.SetRequest readRequest = Pigeon.SetRequest.fromMap(map);
+    Pigeon.AndroidSetRequest readRequest = Pigeon.AndroidSetRequest.fromMap(map);
     assertEquals(request.getValue(), readRequest.getValue());
     assertEquals(request.getState(), readRequest.getState());
   }
 
   @Test
   public void toMapAndBackNested() {
-    Pigeon.NestedRequest nested = new Pigeon.NestedRequest();
-    Pigeon.SetRequest request = new Pigeon.SetRequest();
+    Pigeon.AndroidNestedRequest nested = new Pigeon.AndroidNestedRequest();
+    Pigeon.AndroidSetRequest request = new Pigeon.AndroidSetRequest();
     request.setValue(1234l);
-    request.setState(Pigeon.LoadingState.complete);
+    request.setState(Pigeon.AndroidLoadingState.complete);
     nested.setRequest(request);
     Map<String, Object> map = nested.toMap();
-    Pigeon.NestedRequest readNested = Pigeon.NestedRequest.fromMap(map);
+    Pigeon.AndroidNestedRequest readNested = Pigeon.AndroidNestedRequest.fromMap(map);
     assertEquals(nested.getRequest().getValue(), readNested.getRequest().getValue());
     assertEquals(nested.getRequest().getState(), readNested.getRequest().getState());
   }
 
   @Test
   public void clearsHandler() {
-    Pigeon.Api mockApi = mock(Pigeon.Api.class);
+    Pigeon.AndroidApi mockApi = mock(Pigeon.AndroidApi.class);
     BinaryMessenger binaryMessenger = mock(BinaryMessenger.class);
-    Pigeon.Api.setup(binaryMessenger, mockApi);
+    Pigeon.AndroidApi.setup(binaryMessenger, mockApi);
     ArgumentCaptor<String> channelName = ArgumentCaptor.forClass(String.class);
     verify(binaryMessenger).setMessageHandler(channelName.capture(), isNotNull());
-    Pigeon.Api.setup(binaryMessenger, null);
+    Pigeon.AndroidApi.setup(binaryMessenger, null);
     verify(binaryMessenger).setMessageHandler(eq(channelName.getValue()), isNull());
   }
 
-  /** Causes an exception in the handler by passing in null when a SetRequest is expected. */
+  /** Causes an exception in the handler by passing in null when a AndroidSetRequest is expected. */
   @Test
   public void errorMessage() {
-    Pigeon.Api mockApi = mock(Pigeon.Api.class);
+    Pigeon.AndroidApi mockApi = mock(Pigeon.AndroidApi.class);
     BinaryMessenger binaryMessenger = mock(BinaryMessenger.class);
-    Pigeon.Api.setup(binaryMessenger, mockApi);
+    Pigeon.AndroidApi.setup(binaryMessenger, mockApi);
     ArgumentCaptor<BinaryMessenger.BinaryMessageHandler> handler =
         ArgumentCaptor.forClass(BinaryMessenger.BinaryMessageHandler.class);
     verify(binaryMessenger).setMessageHandler(anyString(), handler.capture());
-    MessageCodec<Object> codec = Pigeon.Api.getCodec();
+    MessageCodec<Object> codec = Pigeon.AndroidApi.getCodec();
     ByteBuffer message = codec.encodeMessage(null);
     handler
         .getValue()
@@ -70,22 +72,27 @@ public class PigeonTest {
               @SuppressWarnings("unchecked")
               Map<String, Object> wrapped = (Map<String, Object>) codec.decodeMessage(bytes);
               assertTrue(wrapped.containsKey("error"));
+              Map<Object, Object> error = (Map<Object, Object>) wrapped.get("error");
+              assertTrue(error.containsKey("details"));
+              String details = (String) error.get("details");
+              assertTrue(details.contains("Cause:"));
+              assertTrue(details.contains("Stacktrace:"));
             });
   }
 
   @Test
   public void callsVoidMethod() {
-    Pigeon.Api mockApi = mock(Pigeon.Api.class);
+    Pigeon.AndroidApi mockApi = mock(Pigeon.AndroidApi.class);
     BinaryMessenger binaryMessenger = mock(BinaryMessenger.class);
-    Pigeon.Api.setup(binaryMessenger, mockApi);
+    Pigeon.AndroidApi.setup(binaryMessenger, mockApi);
     ArgumentCaptor<BinaryMessenger.BinaryMessageHandler> handler =
         ArgumentCaptor.forClass(BinaryMessenger.BinaryMessageHandler.class);
     verify(binaryMessenger).setMessageHandler(anyString(), handler.capture());
-    Pigeon.SetRequest request = new Pigeon.SetRequest();
+    Pigeon.AndroidSetRequest request = new Pigeon.AndroidSetRequest();
     request.setValue(1234l);
-    request.setState(Pigeon.LoadingState.complete);
-    MessageCodec<Object> codec = Pigeon.Api.getCodec();
-    ByteBuffer message = codec.encodeMessage(request);
+    request.setState(Pigeon.AndroidLoadingState.complete);
+    MessageCodec<Object> codec = Pigeon.AndroidApi.getCodec();
+    ByteBuffer message = codec.encodeMessage(new ArrayList<Object>(Arrays.asList(request)));
     message.rewind();
     handler
         .getValue()
@@ -98,17 +105,17 @@ public class PigeonTest {
               assertTrue(wrapped.containsKey("result"));
               assertNull(wrapped.get("result"));
             });
-    ArgumentCaptor<Pigeon.SetRequest> receivedRequest =
-        ArgumentCaptor.forClass(Pigeon.SetRequest.class);
+    ArgumentCaptor<Pigeon.AndroidSetRequest> receivedRequest =
+        ArgumentCaptor.forClass(Pigeon.AndroidSetRequest.class);
     verify(mockApi).setValue(receivedRequest.capture());
     assertEquals(request.getValue(), receivedRequest.getValue().getValue());
   }
 
   @Test
   public void encodeWithNullField() {
-    Pigeon.NestedRequest request = new Pigeon.NestedRequest();
+    Pigeon.AndroidNestedRequest request = new Pigeon.AndroidNestedRequest();
     request.setContext("hello");
-    MessageCodec<Object> codec = Pigeon.NestedApi.getCodec();
+    MessageCodec<Object> codec = Pigeon.AndroidNestedApi.getCodec();
     ByteBuffer message = codec.encodeMessage(request);
     assertNotNull(message);
   }

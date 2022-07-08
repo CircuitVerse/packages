@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:collection/collection.dart' show ListEquality;
+import 'package:meta/meta.dart';
+import 'pigeon_lib.dart';
+
+final Function _listEquals = const ListEquality<dynamic>().equals;
+
 /// Enum that represents where an [Api] is located, on the host or Flutter.
 enum ApiLocation {
   /// The API is for calling functions defined on the host.
@@ -23,6 +29,8 @@ class Method extends Node {
     required this.arguments,
     this.isAsynchronous = false,
     this.offset,
+    this.objcSelector = '',
+    this.taskQueueType = TaskQueueType.serial,
   });
 
   /// The name of the method.
@@ -40,9 +48,17 @@ class Method extends Node {
   /// The offset in the source file where the field appears.
   int? offset;
 
+  /// An override for the generated objc selector (ex. "divideNumber:by:").
+  String objcSelector;
+
+  /// Specifies how handlers are dispatched with respect to threading.
+  TaskQueueType taskQueueType;
+
   @override
   String toString() {
-    return '(Method name:$name returnType:$returnType arguments:$arguments isAsynchronous:$isAsynchronous)';
+    final String objcSelectorStr =
+        objcSelector.isEmpty ? '' : ' objcSelector:$objcSelector';
+    return '(Method name:$name returnType:$returnType arguments:$arguments isAsynchronous:$isAsynchronous$objcSelectorStr)';
   }
 }
 
@@ -75,26 +91,63 @@ class Api extends Node {
 }
 
 /// A specific instance of a type.
+@immutable
 class TypeDeclaration {
   /// Constructor for [TypeDeclaration].
-  TypeDeclaration({
+  const TypeDeclaration({
     required this.baseName,
     required this.isNullable,
-    this.typeArguments,
+    this.typeArguments = const <TypeDeclaration>[],
   });
+
+  /// Void constructor.
+  const TypeDeclaration.voidDeclaration()
+      : baseName = 'void',
+        isNullable = false,
+        typeArguments = const <TypeDeclaration>[];
 
   /// The base name of the [TypeDeclaration] (ex 'Foo' to 'Foo<Bar>?').
   final String baseName;
 
+  /// Returns true if the declaration represents 'void'.
+  bool get isVoid => baseName == 'void';
+
   /// The type arguments to the entity (ex 'Bar' to 'Foo<Bar>?').
-  final List<TypeDeclaration>? typeArguments;
+  final List<TypeDeclaration> typeArguments;
 
   /// True if the type is nullable.
   final bool isNullable;
 
   @override
+  int get hashCode {
+    // This has to be implemented because TypeDeclaration is used as a Key to a
+    // Map in generator_tools.dart.
+    int hash = 17;
+    hash = hash * 37 + baseName.hashCode;
+    hash = hash * 37 + isNullable.hashCode;
+    for (final TypeDeclaration typeArgument in typeArguments) {
+      hash = hash * 37 + typeArgument.hashCode;
+    }
+    return hash;
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other.runtimeType != runtimeType) {
+      return false;
+    } else {
+      return other is TypeDeclaration &&
+          baseName == other.baseName &&
+          isNullable == other.isNullable &&
+          _listEquals(typeArguments, other.typeArguments);
+    }
+  }
+
+  @override
   String toString() {
-    return '(TypeDeclaration baseName:$baseName isNullable:$isNullable typeArguments:$typeArguments)';
+    final String typeArgumentsStr =
+        typeArguments.isEmpty ? '' : 'typeArguments:$typeArguments';
+    return '(TypeDeclaration baseName:$baseName isNullable:$isNullable$typeArgumentsStr)';
   }
 }
 
