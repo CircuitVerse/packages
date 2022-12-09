@@ -187,6 +187,17 @@ class MarkdownBuilder implements md.NodeVisitor {
       assert(_blocks.length == 1);
       node.accept(this);
     }
+    
+    // If there is one inline element left behind, wrap that in a column and add it to the block.
+    if (_inlines.length == 1) {
+      List<Widget> widgets = _inlines.first.children;
+      Widget col = Column(
+        children: widgets,
+      );
+      _blocks.single.children.add(col);
+    }
+
+
 
     assert(_tables.isEmpty);
     assert(_inlines.isEmpty);
